@@ -24,9 +24,21 @@ jobs:
 
       - uses: android-actions/setup-android@v3
 
-      - uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: wrapper
+      - name: Fetch Gradle wrapper jar
+        run: |
+          GRADLE_VERSION="8.11.1"
+          JAR_URL="https://raw.githubusercontent.com/gradle/gradle/v${GRADLE_VERSION}/gradle/wrapper/gradle-wrapper.jar"
+          mkdir -p gradle/wrapper
+          curl -fsSL "$JAR_URL" -o gradle/wrapper/gradle-wrapper.jar
+          # Verify the jar is non-empty
+          if [ ! -s gradle/wrapper/gradle-wrapper.jar ]; then
+            echo "Wrapper jar download failed or is empty, falling back to gradle wrapper task"
+            # Install Gradle separately to generate the wrapper
+            curl -fsSL https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip -o /tmp/gradle.zip
+            unzip -q /tmp/gradle.zip -d /tmp/gradle-dist
+            /tmp/gradle-dist/gradle-${GRADLE_VERSION}/bin/gradle wrapper --gradle-version=${GRADLE_VERSION}
+          fi
+          ls -lh gradle/wrapper/gradle-wrapper.jar
 
       - name: Grant execute permission
         run: chmod +x gradlew
@@ -51,9 +63,17 @@ jobs:
 
       - uses: android-actions/setup-android@v3
 
-      - uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: wrapper
+      - name: Fetch Gradle wrapper jar
+        run: |
+          GRADLE_VERSION="8.11.1"
+          JAR_URL="https://raw.githubusercontent.com/gradle/gradle/v${GRADLE_VERSION}/gradle/wrapper/gradle-wrapper.jar"
+          mkdir -p gradle/wrapper
+          curl -fsSL "$JAR_URL" -o gradle/wrapper/gradle-wrapper.jar
+          if [ ! -s gradle/wrapper/gradle-wrapper.jar ]; then
+            curl -fsSL https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip -o /tmp/gradle.zip
+            unzip -q /tmp/gradle.zip -d /tmp/gradle-dist
+            /tmp/gradle-dist/gradle-${GRADLE_VERSION}/bin/gradle wrapper --gradle-version=${GRADLE_VERSION}
+          fi
 
       - name: Grant execute permission
         run: chmod +x gradlew
@@ -105,9 +125,17 @@ jobs:
 
       - uses: android-actions/setup-android@v3
 
-      - uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: wrapper
+      - name: Fetch Gradle wrapper jar
+        run: |
+          GRADLE_VERSION="8.11.1"
+          JAR_URL="https://raw.githubusercontent.com/gradle/gradle/v${GRADLE_VERSION}/gradle/wrapper/gradle-wrapper.jar"
+          mkdir -p gradle/wrapper
+          curl -fsSL "$JAR_URL" -o gradle/wrapper/gradle-wrapper.jar
+          if [ ! -s gradle/wrapper/gradle-wrapper.jar ]; then
+            curl -fsSL https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip -o /tmp/gradle.zip
+            unzip -q /tmp/gradle.zip -d /tmp/gradle-dist
+            /tmp/gradle-dist/gradle-${GRADLE_VERSION}/bin/gradle wrapper --gradle-version=${GRADLE_VERSION}
+          fi
 
       - name: Grant execute permission
         run: chmod +x gradlew
