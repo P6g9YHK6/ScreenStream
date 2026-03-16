@@ -1,0 +1,28 @@
+Stream your Android screen to any browser on your local Wi-Fi network in real time. No accounts, no cloud, no installation needed on the viewer side.
+
+Open the app, tap Start Streaming, and share the URL with anyone on the same network. The stream opens directly in Chrome, Firefox, Safari, the Tesla browser, or any modern browser.
+
+FEATURES
+
+• Live MJPEG video — works in every modern browser with no plugins
+• Audio streaming — captures device audio playback (Android 10+), configurable sample rate and stereo/mono
+• Frame rate selector — 5, 10, 15, 24, 30, or 60 fps
+• JPEG quality slider — tune bandwidth vs. image sharpness
+• Orientation aware — the viewer page adapts when you rotate or unfold your phone
+• Auto-reconnect — video and audio streams reconnect automatically if interrupted
+• Fullscreen mode — one button shows only the stream, no browser chrome
+• Zero cloud — everything stays on your local network
+• No tracking, no ads, no analytics of any kind
+
+REQUIREMENTS
+
+• Android 6.0 or newer
+• Wi-Fi connection (same network as viewers)
+• Audio capture requires Android 10 or newer
+
+PERMISSIONS
+
+• FOREGROUND_SERVICE / MEDIA_PROJECTION — required to capture the screen while the app is running
+• INTERNET — to serve the HTTP stream to other devices on the network
+• RECORD_AUDIO — optional, used only when audio streaming is enabled
+• ACCESS_WIFI_STATE — to display your local IP address

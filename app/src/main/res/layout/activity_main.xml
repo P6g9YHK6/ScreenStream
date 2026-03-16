@@ -1,0 +1,464 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="20dp"
+        android:gravity="center_horizontal">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="ScreenStream"
+            android:textColor="#e2e2f0"
+            android:textSize="26sp"
+            android:textStyle="bold"
+            android:layout_marginTop="20dp"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Share your screen over local Wi-Fi"
+            android:textColor="#555570"
+            android:textSize="13sp"
+            android:layout_marginTop="4dp"/>
+
+        <!-- Status card -->
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:cardBackgroundColor="#13131a"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="0dp"
+            android:layout_marginTop="24dp">
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="18dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="STATUS"
+                    android:textColor="#555570"
+                    android:textSize="11sp"
+                    android:letterSpacing="0.15"/>
+                <TextView
+                    android:id="@+id/tv_status"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="STOPPED"
+                    android:textColor="#555570"
+                    android:textSize="20sp"
+                    android:textStyle="bold"
+                    android:layout_marginTop="2dp"/>
+                <TextView
+                    android:id="@+id/tv_url_label"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="OPEN IN BROWSER"
+                    android:textColor="#555570"
+                    android:textSize="11sp"
+                    android:letterSpacing="0.15"
+                    android:layout_marginTop="14dp"
+                    android:visibility="gone"/>
+                <TextView
+                    android:id="@+id/tv_url"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text=""
+                    android:textColor="#4f8ef7"
+                    android:textSize="17sp"
+                    android:fontFamily="monospace"
+                    android:textStyle="bold"
+                    android:layout_marginTop="2dp"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:background="?attr/selectableItemBackground"
+                    android:paddingTop="6dp"
+                    android:paddingBottom="6dp"
+                    android:visibility="gone"/>
+                <TextView
+                    android:id="@+id/tv_url_hint"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Tap to share  /  Long-press to open in browser"
+                    android:textColor="#33334a"
+                    android:textSize="11sp"
+                    android:layout_marginTop="2dp"
+                    android:visibility="gone"/>
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
+
+        <!-- Quality card -->
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:cardBackgroundColor="#13131a"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="0dp"
+            android:layout_marginTop="12dp">
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="18dp">
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="JPEG QUALITY"
+                        android:textColor="#555570"
+                        android:textSize="11sp"
+                        android:letterSpacing="0.15"/>
+                    <TextView
+                        android:id="@+id/tv_quality"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="70%"
+                        android:textColor="#4f8ef7"
+                        android:textSize="14sp"
+                        android:textStyle="bold"/>
+                </LinearLayout>
+                <SeekBar
+                    android:id="@+id/seekbar_quality"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:min="10"
+                    android:progressTint="#4f8ef7"
+                    android:thumbTint="#4f8ef7"/>
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
+
+        <!-- FPS card -->
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:cardBackgroundColor="#13131a"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="0dp"
+            android:layout_marginTop="12dp">
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="18dp">
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="FRAME RATE"
+                        android:textColor="#555570"
+                        android:textSize="11sp"
+                        android:letterSpacing="0.15"/>
+                    <TextView
+                        android:id="@+id/tv_fps_label"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="24 fps"
+                        android:textColor="#4f8ef7"
+                        android:textSize="14sp"
+                        android:textStyle="bold"/>
+                </LinearLayout>
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginTop="12dp"
+                    android:gravity="center"
+                    android:weightSum="6">
+                    <Button android:id="@+id/btn_fps_5"
+                        android:layout_width="0dp" android:layout_height="36dp" android:layout_weight="1"
+                        android:layout_marginEnd="4dp" android:text="5" android:textColor="#e2e2f0"
+                        android:textSize="12sp" android:padding="0dp" android:stateListAnimator="@null"
+                        android:backgroundTint="#1e1e2e"/>
+                    <Button android:id="@+id/btn_fps_10"
+                        android:layout_width="0dp" android:layout_height="36dp" android:layout_weight="1"
+                        android:layout_marginEnd="4dp" android:text="10" android:textColor="#e2e2f0"
+                        android:textSize="12sp" android:padding="0dp" android:stateListAnimator="@null"
+                        android:backgroundTint="#1e1e2e"/>
+                    <Button android:id="@+id/btn_fps_15"
+                        android:layout_width="0dp" android:layout_height="36dp" android:layout_weight="1"
+                        android:layout_marginEnd="4dp" android:text="15" android:textColor="#e2e2f0"
+                        android:textSize="12sp" android:padding="0dp" android:stateListAnimator="@null"
+                        android:backgroundTint="#1e1e2e"/>
+                    <Button android:id="@+id/btn_fps_24"
+                        android:layout_width="0dp" android:layout_height="36dp" android:layout_weight="1"
+                        android:layout_marginEnd="4dp" android:text="24" android:textColor="#e2e2f0"
+                        android:textSize="12sp" android:padding="0dp" android:stateListAnimator="@null"
+                        android:backgroundTint="#1e1e2e"/>
+                    <Button android:id="@+id/btn_fps_30"
+                        android:layout_width="0dp" android:layout_height="36dp" android:layout_weight="1"
+                        android:layout_marginEnd="4dp" android:text="30" android:textColor="#e2e2f0"
+                        android:textSize="12sp" android:padding="0dp" android:stateListAnimator="@null"
+                        android:backgroundTint="#1e1e2e"/>
+                    <Button android:id="@+id/btn_fps_60"
+                        android:layout_width="0dp" android:layout_height="36dp" android:layout_weight="1"
+                        android:text="60" android:textColor="#e2e2f0"
+                        android:textSize="12sp" android:padding="0dp" android:stateListAnimator="@null"
+                        android:backgroundTint="#1e1e2e"/>
+                </LinearLayout>
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
+
+        <!-- Audio card -->
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:cardBackgroundColor="#13131a"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="0dp"
+            android:layout_marginTop="12dp">
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="18dp">
+
+                <!-- Audio toggle row -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="STREAM AUDIO"
+                            android:textColor="#555570"
+                            android:textSize="11sp"
+                            android:letterSpacing="0.15"/>
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Capture device audio (Android 10+)"
+                            android:textColor="#33334a"
+                            android:textSize="11sp"
+                            android:layout_marginTop="2dp"/>
+                    </LinearLayout>
+                    <androidx.appcompat.widget.SwitchCompat
+                        android:id="@+id/switch_audio"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:checked="true"
+                        app:thumbTint="#4f8ef7"
+                        app:trackTint="#1e1e40"/>
+                </LinearLayout>
+
+                <!-- Divider -->
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="#1e1e2e"
+                    android:layout_marginTop="14dp"
+                    android:layout_marginBottom="14dp"/>
+
+                <!-- Sample rate row -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="SAMPLE RATE"
+                        android:textColor="#555570"
+                        android:textSize="11sp"
+                        android:letterSpacing="0.15"/>
+                    <Spinner
+                        android:id="@+id/spinner_sample_rate"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:backgroundTint="#4f8ef7"
+                        android:spinnerMode="dropdown"/>
+                </LinearLayout>
+
+                <!-- Channels row -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginTop="12dp">
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="CHANNELS"
+                        android:textColor="#555570"
+                        android:textSize="11sp"
+                        android:letterSpacing="0.15"/>
+                    <Spinner
+                        android:id="@+id/spinner_channels"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:backgroundTint="#4f8ef7"
+                        android:spinnerMode="dropdown"/>
+                </LinearLayout>
+
+                <!-- Codec row -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginTop="12dp">
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="ENCODING"
+                        android:textColor="#555570"
+                        android:textSize="11sp"
+                        android:letterSpacing="0.15"/>
+                    <Spinner
+                        android:id="@+id/spinner_encoding"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:backgroundTint="#4f8ef7"
+                        android:spinnerMode="dropdown"/>
+                </LinearLayout>
+
+                <!-- Port row -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginTop="14dp">
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="HTTP PORT"
+                            android:textColor="#555570"
+                            android:textSize="11sp"
+                            android:letterSpacing="0.15"/>
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="1024 – 65535"
+                            android:textColor="#33334a"
+                            android:textSize="11sp"
+                            android:layout_marginTop="2dp"/>
+                    </LinearLayout>
+                    <EditText
+                        android:id="@+id/edit_port"
+                        android:layout_width="90dp"
+                        android:layout_height="wrap_content"
+                        android:inputType="number"
+                        android:text="8080"
+                        android:hint="8080"
+                        android:textColor="#e2e2f0"
+                        android:textColorHint="#555570"
+                        android:textSize="14sp"
+                        android:fontFamily="monospace"
+                        android:gravity="end"
+                        android:background="@android:color/transparent"
+                        android:paddingStart="4dp"
+                        android:paddingEnd="4dp"
+                        android:maxLength="5"
+                        android:singleLine="true"
+                        android:autofillHints=""/>
+                </LinearLayout>
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="#1e1e2e"
+                    android:layout_marginTop="14dp"
+                    android:layout_marginBottom="14dp"/>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="AUTO-RESTART"
+                            android:textColor="#555570"
+                            android:textSize="11sp"
+                            android:letterSpacing="0.15"/>
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Re-request capture if stopped by system"
+                            android:textColor="#33334a"
+                            android:textSize="11sp"
+                            android:layout_marginTop="2dp"/>
+                    </LinearLayout>
+                    <androidx.appcompat.widget.SwitchCompat
+                        android:id="@+id/switch_auto_restart"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:checked="false"
+                        app:thumbTint="#4f8ef7"
+                        app:trackTint="#1e1e40"/>
+                </LinearLayout>
+
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
+
+        <!-- Start / Stop button -->
+        <Button
+            android:id="@+id/btn_toggle"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:text="Start Streaming"
+            android:textColor="#ffffff"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:backgroundTint="@color/colorPrimary"
+            android:stateListAnimator="@null"
+            android:layout_marginTop="20dp"/>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Anyone on the same Wi-Fi can view the stream in any browser. No app required."
+            android:textColor="#2a2a40"
+            android:textSize="11sp"
+            android:gravity="center"
+            android:lineSpacingMultiplier="1.5"
+            android:layout_marginTop="14dp"
+            android:layout_marginBottom="20dp"/>
+
+    </LinearLayout>
+</ScrollView>

@@ -1,0 +1,67 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.screenstream'
+    compileSdk 36
+
+    defaultConfig {
+        applicationId "com.screenstream"
+        minSdk 23
+        targetSdk 35
+        versionCode 1
+        versionName "1.0"
+        resConfigs "en"
+    }
+
+    signingConfigs {
+        release {
+            if (System.getenv("KEYSTORE_PATH")) {
+                storeFile     file(System.getenv("KEYSTORE_PATH"))
+                storePassword System.getenv("KEYSTORE_PASSWORD")
+                keyAlias      System.getenv("KEY_ALIAS")
+                keyPassword   System.getenv("KEY_PASSWORD")
+            }
+        }
+    }
+
+    buildTypes {
+        debug {
+            applicationIdSuffix ".debug"
+            versionNameSuffix   "-debug"
+        }
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            if (System.getenv("KEYSTORE_PATH")) {
+                signingConfig signingConfigs.release
+            }
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
+    }
+
+    buildFeatures {
+        viewBinding true
+    }
+
+    dependenciesInfo {
+        includeInApk false
+        includeInBundle false
+    }
+
+    lint {
+        disable 'HardcodedText', 'SetTextI18n'
+    }
+}
+
+dependencies {
+    implementation 'androidx.appcompat:appcompat:1.7.1'
+    implementation 'androidx.activity:activity:1.10.1'
+    implementation 'com.google.android.material:material:1.13.0'
+    implementation 'androidx.constraintlayout:constraintlayout:2.2.1'
+}

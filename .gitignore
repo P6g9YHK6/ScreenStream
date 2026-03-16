@@ -1,0 +1,38 @@
+# Local machine config — never commit
+local.properties
+
+# Build outputs
+*.apk
+*.aab
+*.ap_
+build/
+app/build/
+
+# Gradle
+.gradle/
+gradle/wrapper/gradle-wrapper.jar
+!gradle/wrapper/gradle-wrapper.properties
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+*.iws
+*.ipr
+captures/
+.externalNativeBuild/
+.cxx/
+
+# OS files
+.DS_Store
+Thumbs.db
+*.swp
+*~
+
+# Signing keys — never commit
+*.jks
+*.keystore
+keystore.properties
+
+# Sensitive CI secrets
+.env
+secrets.properties

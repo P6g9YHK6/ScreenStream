@@ -1,0 +1,50 @@
+Categories:
+  - Multimedia
+  - System
+
+License: MIT
+
+AuthorName: Screen Stream Contributors
+SourceCode: https://github.com/P6g9YHK6/AndroidScreenStream
+IssueTracker: https://github.com/P6g9YHK6/AndroidScreenStream/issues
+
+AutoName: Screen Stream
+
+Description: |-
+  Stream your Android screen to any browser on your local Wi-Fi network.
+  No accounts, no cloud, no cables required.
+
+  <b>Features</b>
+  * Live MJPEG video stream viewable in any browser (Chrome, Firefox, Safari, Tesla browser, smart TVs)
+  * Audio streaming with configurable sample rate (16/22/44.1/48 kHz) and channels (mono/stereo)
+  * Adjustable frame rate: 5 / 10 / 15 / 24 / 30 / 60 fps
+  * Adjustable JPEG quality for bandwidth control
+  * Automatic adaptation to screen rotation, foldable phones, and display size changes
+  * Auto-reconnect on both video and audio streams
+  * Fullscreen mode on the viewer page shows only the stream
+  * No internet connection required — purely local network
+  * No tracking, no ads, no analytics
+
+  <b>How to use</b>
+  1. Open the app and tap "Start Streaming"
+  2. Accept the screen capture permission
+  3. Open the shown URL (e.g. http://192.168.x.x:8080) on any device on the same Wi-Fi
+  4. The stream appears immediately in the browser
+
+  Audio streaming requires Android 10 or newer.
+
+RepoType: git
+Repo: https://github.com/P6g9YHK6/AndroidScreenStream
+
+Builds:
+  - versionName: '1.0'
+    versionCode: 1
+    commit: v1.0
+    subdir: app
+    gradle:
+      - yes
+
+AutoUpdateMode: Version
+UpdateCheckMode: Tags
+CurrentVersion: '1.0'
+CurrentVersionCode: 1

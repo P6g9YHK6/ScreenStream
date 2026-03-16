@@ -1,0 +1,8 @@
+Initial release.
+
+• Live MJPEG screen streaming to any browser on local Wi-Fi
+• Audio streaming with sample rate and channel selection
+• Configurable FPS (5/10/15/24/30/60) and JPEG quality
+• Automatic adaptation to screen rotation and foldable displays
+• Auto-reconnect on stream interruption
+• Fullscreen viewer mode
