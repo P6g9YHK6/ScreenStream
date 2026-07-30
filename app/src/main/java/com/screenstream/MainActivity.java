@@ -38,20 +38,26 @@ import androidx.core.app.ActivityCompat;
 
 import java.net.InetAddress;
 import java.net.NetworkInterface;
+import java.security.SecureRandom;
 import java.util.Collections;
+import java.util.Locale;
 
 public class MainActivity extends AppCompatActivity {
 
     private static final String TAG          = "ScreenStream";
     private static final int    DEFAULT_PORT = 8080;
 
-    private TextView tvStatus, tvUrl, tvUrlLabel, tvUrlHint, tvQuality, tvFpsLabel;
+    private static final SecureRandom secureRandom = new SecureRandom();
+
+    private TextView tvStatus, tvUrl, tvUrlLabel, tvUrlHint, tvQuality, tvFpsLabel, tvPin;
     private Button   btnToggle, btnFps5, btnFps10, btnFps15, btnFps24, btnFps30, btnFps60;
+    private Button   btnPinRegen, btnBasicRegen;
     private SeekBar      seekBarQuality;
     private SwitchCompat switchAudio;
     private SwitchCompat switchAutoRestart;
-    private Spinner  spinnerSampleRate, spinnerChannels, spinnerEncoding;
-    private EditText editPort;
+    private Spinner  spinnerSampleRate, spinnerChannels, spinnerEncoding, spinnerAuthMode;
+    private EditText editPort, editBasicUser, editBasicPass;
+    private View     layoutPinRow, layoutBasicRow;
 
     private boolean isStreaming        = false;
     private boolean autoRestart        = false;
@@ -62,6 +68,11 @@ public class MainActivity extends AppCompatActivity {
     private int     selectedEncoding   = AudioFormat.ENCODING_PCM_16BIT;
     private int     selectedPort       = DEFAULT_PORT;
     private String  currentUrl         = "";
+
+    private ScreenStreamService.AuthMode authMode  = ScreenStreamService.AuthMode.NONE;
+    private String currentPin = generatePin();
+    private String basicUser  = "viewer";
+    private String basicPass  = generatePassword();
 
     private final BroadcastReceiver stoppedReceiver = new BroadcastReceiver() {
         @Override
@@ -97,6 +108,24 @@ public class MainActivity extends AppCompatActivity {
             return WindowInsetsCompat.CONSUMED;
         });
 
+        bindViewsAndListeners();
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            ActivityCompat.requestPermissions(this,
+                new String[]{android.Manifest.permission.POST_NOTIFICATIONS}, 1);
+        }
+
+        ErrorReporter.get().init(this);
+        ErrorReporter.get().addListener(error -> {
+            if (error.level == ErrorReporter.Level.ERROR || error.level == ErrorReporter.Level.FATAL) {
+                runOnUiThread(() -> showErrorDialog(error));
+            }
+        });
+
+        updateStatusStopped();
+    }
+
+    private void bindViewsAndListeners() {
         tvStatus          = findViewById(R.id.tv_status);
         tvUrl             = findViewById(R.id.tv_url);
         tvUrlLabel        = findViewById(R.id.tv_url_label);
@@ -117,6 +146,14 @@ public class MainActivity extends AppCompatActivity {
         btnFps24          = findViewById(R.id.btn_fps_24);
         btnFps30          = findViewById(R.id.btn_fps_30);
         btnFps60          = findViewById(R.id.btn_fps_60);
+        spinnerAuthMode   = findViewById(R.id.spinner_auth_mode);
+        layoutPinRow      = findViewById(R.id.layout_pin_row);
+        layoutBasicRow    = findViewById(R.id.layout_basic_row);
+        tvPin             = findViewById(R.id.tv_pin);
+        btnPinRegen       = findViewById(R.id.btn_pin_regen);
+        btnBasicRegen     = findViewById(R.id.btn_basic_regen);
+        editBasicUser     = findViewById(R.id.edit_basic_user);
+        editBasicPass     = findViewById(R.id.edit_basic_pass);
 
         setupQuality();
         setupFps();
@@ -124,24 +161,11 @@ public class MainActivity extends AppCompatActivity {
         setupSpinners();
         setupPort();
         setupAutoRestart();
+        setupAuth();
 
         btnToggle.setOnClickListener(v -> { if (isStreaming) stopStreaming(); else requestCapturePermission(); });
         tvUrl.setOnClickListener(v -> shareUrl());
         tvUrl.setOnLongClickListener(v -> { openInBrowser(); return true; });
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            ActivityCompat.requestPermissions(this,
-                new String[]{android.Manifest.permission.POST_NOTIFICATIONS}, 1);
-        }
-
-        ErrorReporter.get().init(this);
-        ErrorReporter.get().addListener(error -> {
-            if (error.level == ErrorReporter.Level.ERROR || error.level == ErrorReporter.Level.FATAL) {
-                runOnUiThread(() -> showErrorDialog(error));
-            }
-        });
-
-        updateStatusStopped();
     }
 
     private void setupQuality() {
@@ -275,6 +299,74 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    private void setupAuth() {
+        String[] labels = {"None", "PIN", "Basic Auth"};
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(this,
+            android.R.layout.simple_spinner_item, labels);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinnerAuthMode.setAdapter(adapter);
+        spinnerAuthMode.setSelection(authModeToIndex(authMode));
+        tvPin.setText(currentPin);
+        editBasicUser.setText(basicUser);
+        editBasicPass.setText(basicPass);
+        updateAuthRowsVisibility();
+
+        spinnerAuthMode.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override public void onItemSelected(AdapterView<?> p, View v, int pos, long id) {
+                authMode = indexToAuthMode(pos);
+                updateAuthRowsVisibility();
+            }
+            @Override public void onNothingSelected(AdapterView<?> p) {}
+        });
+
+        btnPinRegen.setOnClickListener(v -> {
+            currentPin = generatePin();
+            tvPin.setText(currentPin);
+        });
+        btnBasicRegen.setOnClickListener(v -> {
+            basicPass = generatePassword();
+            editBasicPass.setText(basicPass);
+        });
+        editBasicUser.setOnFocusChangeListener((v, hasFocus) -> {
+            if (!hasFocus) basicUser = editBasicUser.getText().toString();
+        });
+        editBasicPass.setOnFocusChangeListener((v, hasFocus) -> {
+            if (!hasFocus) basicPass = editBasicPass.getText().toString();
+        });
+    }
+
+    private void updateAuthRowsVisibility() {
+        layoutPinRow.setVisibility(authMode == ScreenStreamService.AuthMode.PIN ? View.VISIBLE : View.GONE);
+        layoutBasicRow.setVisibility(authMode == ScreenStreamService.AuthMode.BASIC ? View.VISIBLE : View.GONE);
+    }
+
+    private static int authModeToIndex(ScreenStreamService.AuthMode mode) {
+        switch (mode) {
+            case PIN:   return 1;
+            case BASIC: return 2;
+            default:    return 0;
+        }
+    }
+
+    private static ScreenStreamService.AuthMode indexToAuthMode(int pos) {
+        switch (pos) {
+            case 1:  return ScreenStreamService.AuthMode.PIN;
+            case 2:  return ScreenStreamService.AuthMode.BASIC;
+            default: return ScreenStreamService.AuthMode.NONE;
+        }
+    }
+
+    private String generatePin() {
+        return String.format(Locale.US, "%06d", secureRandom.nextInt(1_000_000));
+    }
+
+    private String generatePassword() {
+        byte[] raw = new byte[9];
+        secureRandom.nextBytes(raw);
+        return android.util.Base64.encodeToString(raw,
+            android.util.Base64.URL_SAFE | android.util.Base64.NO_WRAP | android.util.Base64.NO_PADDING);
+    }
+
     private void validateAndApplyPort() {
         String text = editPort.getText().toString().trim();
         try {
@@ -329,6 +421,10 @@ public class MainActivity extends AppCompatActivity {
         svc.putExtra(ScreenStreamService.EXTRA_AUDIO_SR, selectedSampleRate);
         svc.putExtra(ScreenStreamService.EXTRA_AUDIO_CH, selectedChannels);
         svc.putExtra(ScreenStreamService.EXTRA_AUDIO_ENC, selectedEncoding);
+        svc.putExtra(ScreenStreamService.EXTRA_AUTH_MODE, authMode.name());
+        svc.putExtra(ScreenStreamService.EXTRA_PIN, currentPin);
+        svc.putExtra(ScreenStreamService.EXTRA_BASIC_USER, basicUser);
+        svc.putExtra(ScreenStreamService.EXTRA_BASIC_PASS, basicPass);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(svc);
         else startService(svc);
         isStreaming = true;
@@ -349,6 +445,9 @@ public class MainActivity extends AppCompatActivity {
         btnToggle.setText("Stop Streaming");
         btnToggle.setBackgroundColor(getColor(R.color.red));
         currentUrl = "http://" + getLocalIpAddress() + ":" + selectedPort;
+        if (authMode == ScreenStreamService.AuthMode.PIN) {
+            currentUrl += "/?pin=" + currentPin;
+        }
         tvUrl.setText(currentUrl);
         tvUrl.setVisibility(View.VISIBLE);
         tvUrlLabel.setVisibility(View.VISIBLE);
@@ -377,6 +476,11 @@ public class MainActivity extends AppCompatActivity {
         spinnerEncoding.setEnabled(on);
         editPort.setEnabled(on);
         switchAutoRestart.setEnabled(on);
+        spinnerAuthMode.setEnabled(on);
+        btnPinRegen.setEnabled(on);
+        btnBasicRegen.setEnabled(on);
+        editBasicUser.setEnabled(on);
+        editBasicPass.setEnabled(on);
     }
 
     private String getLocalIpAddress() {
@@ -448,39 +552,8 @@ public class MainActivity extends AppCompatActivity {
         super.onConfigurationChanged(newConfig);
 
         setContentView(R.layout.activity_main);
-
-        tvStatus          = findViewById(R.id.tv_status);
-        tvUrl             = findViewById(R.id.tv_url);
-        tvUrlLabel        = findViewById(R.id.tv_url_label);
-        tvUrlHint         = findViewById(R.id.tv_url_hint);
-        tvQuality         = findViewById(R.id.tv_quality);
-        tvFpsLabel        = findViewById(R.id.tv_fps_label);
-        btnToggle         = findViewById(R.id.btn_toggle);
-        seekBarQuality    = findViewById(R.id.seekbar_quality);
-        switchAudio       = findViewById(R.id.switch_audio);
-        switchAutoRestart = findViewById(R.id.switch_auto_restart);
-        spinnerSampleRate = findViewById(R.id.spinner_sample_rate);
-        spinnerChannels   = findViewById(R.id.spinner_channels);
-        spinnerEncoding   = findViewById(R.id.spinner_encoding);
-        editPort          = findViewById(R.id.edit_port);
-        btnFps5           = findViewById(R.id.btn_fps_5);
-        btnFps10          = findViewById(R.id.btn_fps_10);
-        btnFps15          = findViewById(R.id.btn_fps_15);
-        btnFps24          = findViewById(R.id.btn_fps_24);
-        btnFps30          = findViewById(R.id.btn_fps_30);
-        btnFps60          = findViewById(R.id.btn_fps_60);
-
-        setupQuality();
-        setupFps();
-        setupAudio();
-        setupSpinners();
-        setupPort();
-        setupAutoRestart();
+        bindViewsAndListeners();
         switchAutoRestart.setChecked(autoRestart);
-
-        btnToggle.setOnClickListener(v -> { if (isStreaming) stopStreaming(); else requestCapturePermission(); });
-        tvUrl.setOnClickListener(v -> shareUrl());
-        tvUrl.setOnLongClickListener(v -> { openInBrowser(); return true; });
 
         if (isStreaming) updateStatusRunning();
         else updateStatusStopped();

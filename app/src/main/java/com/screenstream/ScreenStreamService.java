@@ -22,6 +22,7 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.IBinder;
+import android.util.Base64;
 import android.util.DisplayMetrics;
 import android.view.Display;
 
@@ -39,6 +40,10 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.util.HashMap;
+import java.util.Locale;
+import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -66,6 +71,12 @@ public class ScreenStreamService extends Service {
     public static final String EXTRA_AUDIO_SR    = "EXTRA_AUDIO_SR";
     public static final String EXTRA_AUDIO_CH    = "EXTRA_AUDIO_CH";
     public static final String EXTRA_AUDIO_ENC   = "EXTRA_AUDIO_ENC";
+    public static final String EXTRA_AUTH_MODE   = "EXTRA_AUTH_MODE";
+    public static final String EXTRA_PIN         = "EXTRA_PIN";
+    public static final String EXTRA_BASIC_USER  = "EXTRA_BASIC_USER";
+    public static final String EXTRA_BASIC_PASS  = "EXTRA_BASIC_PASS";
+
+    public enum AuthMode { NONE, PIN, BASIC }
 
     private static final AtomicInteger  jpegQuality     = new AtomicInteger(70);
     private static final AtomicInteger  targetFps       = new AtomicInteger(24);
@@ -73,6 +84,11 @@ public class ScreenStreamService extends Service {
     private static final AtomicInteger  audioSampleRate = new AtomicInteger(44100);
     private static final AtomicInteger  audioChannels   = new AtomicInteger(2);
     private static final AtomicInteger  audioEncoding   = new AtomicInteger(android.media.AudioFormat.ENCODING_PCM_16BIT);
+
+    private static final AtomicReference<AuthMode> authMode    = new AtomicReference<>(AuthMode.NONE);
+    private static final AtomicReference<String>   requiredPin = new AtomicReference<>("");
+    private static final AtomicReference<String>   basicUser   = new AtomicReference<>("");
+    private static final AtomicReference<String>   basicPass   = new AtomicReference<>("");
 
     private static final AtomicReference<byte[]> latestFrame  = new AtomicReference<>(null);
     private static final AtomicInteger           streamWidth  = new AtomicInteger(0);
@@ -149,6 +165,16 @@ public class ScreenStreamService extends Service {
     public static void setAudioSampleRate(int sr)   { audioSampleRate.set(sr); }
     public static void setAudioChannels(int ch)     { audioChannels.set(ch); }
     public static void setAudioEncoding(int enc)    { audioEncoding.set(enc); }
+    public static void setAuthMode(AuthMode mode)   { authMode.set(mode != null ? mode : AuthMode.NONE); }
+    public static void setRequiredPin(String pin)   { requiredPin.set(pin != null ? pin : ""); }
+    public static void setBasicCredentials(String user, String pass) {
+        basicUser.set(user != null ? user : "");
+        basicPass.set(pass != null ? pass : "");
+    }
+
+    private static AuthMode parseAuthMode(String s) {
+        try { return AuthMode.valueOf(s); } catch (Exception e) { return AuthMode.NONE; }
+    }
 
     @Override
     public void onCreate() {
@@ -191,6 +217,9 @@ public class ScreenStreamService extends Service {
             audioSampleRate.set(intent.getIntExtra(EXTRA_AUDIO_SR, 44100));
             audioChannels.set(intent.getIntExtra(EXTRA_AUDIO_CH, 2));
             audioEncoding.set(intent.getIntExtra(EXTRA_AUDIO_ENC, android.media.AudioFormat.ENCODING_PCM_16BIT));
+            setAuthMode(parseAuthMode(intent.getStringExtra(EXTRA_AUTH_MODE)));
+            setRequiredPin(intent.getStringExtra(EXTRA_PIN));
+            setBasicCredentials(intent.getStringExtra(EXTRA_BASIC_USER), intent.getStringExtra(EXTRA_BASIC_PASS));
 
             startForeground(NOTIFICATION_ID, buildNotification(savedPort));
 
@@ -770,12 +799,26 @@ public class ScreenStreamService extends Service {
             byte[] buf = new byte[8192];
             int n = socket.getInputStream().read(buf);
             if (n <= 0) { socket.close(); return; }
-            String firstLine = new String(buf, 0, n).split("\r\n")[0];
-            String[] parts   = firstLine.split(" ");
+            String request = new String(buf, 0, n, StandardCharsets.UTF_8);
+            String[] lines = request.split("\r\n");
+            String[] parts = lines[0].split(" ");
             if (parts.length < 2) { sendHttpError(socket, 400, "Bad Request"); return; }
-            String path = parts[1];
-            if (path.contains("?")) path = path.substring(0, path.indexOf('?'));
+            String rawPath = parts[1];
+            String path    = rawPath;
+            String query   = "";
+            int qIdx = rawPath.indexOf('?');
+            if (qIdx >= 0) {
+                path  = rawPath.substring(0, qIdx);
+                query = rawPath.substring(qIdx + 1);
+            }
+            Map<String, String> headers = parseHeaders(lines);
             socket.setSoTimeout(0);
+
+            if (!isAuthorized(query, headers)) {
+                sendAuthChallenge(socket);
+                return;
+            }
+
             switch (path) {
                 case "/stream": serveMjpegStream(socket); break;
                 case "/audio":  serveAudioStream(socket); break;
@@ -790,6 +833,84 @@ public class ScreenStreamService extends Service {
             ErrorReporter.get().warn(ErrorReporter.Source.NETWORK, "Client handler error: " + e.getMessage());
             try { socket.close(); } catch (IOException ignored) {}
         }
+    }
+
+    static Map<String, String> parseHeaders(String[] requestLines) {
+        Map<String, String> headers = new HashMap<>();
+        for (int i = 1; i < requestLines.length; i++) {
+            String line = requestLines[i];
+            if (line.isEmpty()) break;
+            int colon = line.indexOf(':');
+            if (colon > 0) {
+                headers.put(line.substring(0, colon).trim().toLowerCase(Locale.ROOT),
+                    line.substring(colon + 1).trim());
+            }
+        }
+        return headers;
+    }
+
+    boolean isAuthorized(String query, Map<String, String> headers) {
+        switch (authMode.get()) {
+            case NONE:
+                return true;
+            case PIN: {
+                String pin = requiredPin.get();
+                return pin != null && !pin.isEmpty() && constantTimeEquals(extractQueryParam(query, "pin"), pin);
+            }
+            case BASIC: {
+                if (basicUser.get().isEmpty() && basicPass.get().isEmpty()) return false;
+                String authz = headers.get("authorization");
+                if (authz == null || !authz.regionMatches(true, 0, "Basic ", 0, 6)) return false;
+                try {
+                    byte[] decoded = Base64.decode(authz.substring(6), Base64.DEFAULT);
+                    String creds = new String(decoded, StandardCharsets.UTF_8);
+                    int sep = creds.indexOf(':');
+                    if (sep < 0) return false;
+                    boolean userOk = constantTimeEquals(creds.substring(0, sep), basicUser.get());
+                    boolean passOk = constantTimeEquals(creds.substring(sep + 1), basicPass.get());
+                    return userOk & passOk;
+                } catch (IllegalArgumentException e) {
+                    return false;
+                }
+            }
+            default:
+                return true;
+        }
+    }
+
+    private void sendAuthChallenge(Socket socket) {
+        try {
+            if (authMode.get() == AuthMode.BASIC) {
+                String body = "<h1>401 Unauthorized</h1>";
+                PrintStream ps = new PrintStream(socket.getOutputStream());
+                ps.print("HTTP/1.1 401 Unauthorized\r\n");
+                ps.print("WWW-Authenticate: Basic realm=\"ScreenStream\"\r\n");
+                ps.print("Content-Type: text/html\r\nContent-Length: " + body.length() + "\r\nConnection: close\r\n\r\n");
+                ps.print(body);
+                ps.flush();
+                socket.close();
+            } else {
+                sendHttpError(socket, 403, "Forbidden");
+            }
+        } catch (IOException ignored) {
+            try { socket.close(); } catch (IOException ignore) {}
+        }
+    }
+
+    static String extractQueryParam(String query, String key) {
+        if (query == null || query.isEmpty()) return null;
+        for (String pair : query.split("&")) {
+            int eq = pair.indexOf('=');
+            String k = eq >= 0 ? pair.substring(0, eq) : pair;
+            if (k.equals(key)) return eq >= 0 ? pair.substring(eq + 1) : "";
+        }
+        return null;
+    }
+
+    static boolean constantTimeEquals(String a, String b) {
+        byte[] ab = (a != null ? a : "").getBytes(StandardCharsets.UTF_8);
+        byte[] bb = (b != null ? b : "").getBytes(StandardCharsets.UTF_8);
+        return MessageDigest.isEqual(ab, bb);
     }
 
     private void sendHttpError(Socket socket, int code, String text) {
@@ -939,7 +1060,8 @@ public class ScreenStreamService extends Service {
     }
 
     private void serveHtml(Socket socket) throws IOException {
-        byte[] body = buildViewerHtml().getBytes(StandardCharsets.UTF_8);
+        String pinForClient = (authMode.get() == AuthMode.PIN) ? requiredPin.get() : "";
+        byte[] body = buildViewerHtml(pinForClient).getBytes(StandardCharsets.UTF_8);
         PrintStream ps = new PrintStream(socket.getOutputStream());
         ps.print("HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\n");
         ps.print("Content-Length: " + body.length + "\r\nConnection: close\r\n\r\n");
@@ -949,7 +1071,18 @@ public class ScreenStreamService extends Service {
         socket.close();
     }
 
-    private String buildViewerHtml() {
+    private static String jsStringLiteral(String s) {
+        if (s == null) s = "";
+        StringBuilder sb = new StringBuilder("'");
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (c == '\\' || c == '\'') sb.append('\\');
+            sb.append(c);
+        }
+        return sb.append('\'').toString();
+    }
+
+    private String buildViewerHtml(String pin) {
         return "<!DOCTYPE html><html lang='en'><head>"
 + "<meta charset='utf-8'>"
 + "<meta name='viewport' content='width=device-width,initial-scale=1,maximum-scale=1'>"
@@ -1038,6 +1171,7 @@ public class ScreenStreamService extends Service {
 + "<span id='err-badge' onclick='openErrPanel()'></span>"
 + "</div></div>"
 + "<script>"
++ "var PIN=" + jsStringLiteral(pin) + ";"
 + "var si=document.getElementById('si');"
 + "var overlay=document.getElementById('overlay');"
 + "var ovtxt=document.getElementById('ovtxt');"
@@ -1084,7 +1218,7 @@ public class ScreenStreamService extends Service {
 + "function openErrPanel(){document.getElementById('err-panel').classList.add('open');}"
 + "function closeErrPanel(){document.getElementById('err-panel').classList.remove('open');}"
 + "var vRetry=0,vTimer=null,knownSession=0,fc=0,ft=Date.now();"
-+ "function connectVideo(){si.src='/stream?t='+Date.now();}"
++ "function connectVideo(){si.src='/stream?t='+Date.now()+(PIN?('&pin='+PIN):'');}"
 + "function onLoad(){"
 + "  vRetry=0;if(vTimer){clearTimeout(vTimer);vTimer=null;}"
 + "  fc++;var n=Date.now();if(n-ft>=1000){fpsCtr.textContent=fc+' fps';fc=0;ft=n;}"
@@ -1098,7 +1232,7 @@ public class ScreenStreamService extends Service {
 + "}"
 + "connectVideo();"
 + "(function sse(){"
-+ "  var es=new EventSource('/events');"
++ "  var es=new EventSource('/events'+(PIN?('?pin='+PIN):''));"
 + "  es.onmessage=function(e){"
 + "    try{"
 + "      var d=JSON.parse(e.data);"
@@ -1147,7 +1281,7 @@ public class ScreenStreamService extends Service {
 + "    analyser.connect(actx.destination);"
 + "    var arr=new Uint8Array(analyser.frequencyBinCount);"
 + "    (function bar(){if(!aActive)return;analyser.getByteFrequencyData(arr);var s=0;for(var i=0;i<arr.length;i++)s+=arr[i];abar.style.width=Math.min(100,s/arr.length*2.5)+'%';requestAnimationFrame(bar);})();"
-+ "    var resp=await fetch('/audio');"
++ "    var resp=await fetch('/audio'+(PIN?('?pin='+PIN):''));"
 + "    if(!resp.ok)throw new Error('HTTP '+resp.status);"
 + "    var hSR=resp.headers.get('X-Audio-SampleRate'),hCH=resp.headers.get('X-Audio-Channels'),hBits=resp.headers.get('X-Audio-Bits');"
 + "    SR=hSR?parseInt(hSR):44100;CH=hCH?parseInt(hCH):2;"

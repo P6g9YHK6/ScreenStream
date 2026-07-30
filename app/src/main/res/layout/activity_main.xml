@@ -436,6 +436,174 @@
             </LinearLayout>
         </androidx.cardview.widget.CardView>
 
+        <!-- Security card -->
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:cardBackgroundColor="#13131a"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="0dp"
+            android:layout_marginTop="12dp">
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="18dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="AUTHENTICATION"
+                            android:textColor="#555570"
+                            android:textSize="11sp"
+                            android:letterSpacing="0.15"/>
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Off by default — anyone on the network can view"
+                            android:textColor="#33334a"
+                            android:textSize="11sp"
+                            android:layout_marginTop="2dp"/>
+                    </LinearLayout>
+                    <Spinner
+                        android:id="@+id/spinner_auth_mode"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:backgroundTint="#4f8ef7"
+                        android:spinnerMode="dropdown"/>
+                </LinearLayout>
+
+                <!-- PIN row -->
+                <LinearLayout
+                    android:id="@+id/layout_pin_row"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginTop="14dp"
+                    android:visibility="gone">
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="PIN"
+                            android:textColor="#555570"
+                            android:textSize="11sp"
+                            android:letterSpacing="0.15"/>
+                        <TextView
+                            android:id="@+id/tv_pin"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="000000"
+                            android:textColor="#4f8ef7"
+                            android:textSize="18sp"
+                            android:fontFamily="monospace"
+                            android:textStyle="bold"
+                            android:layout_marginTop="2dp"/>
+                    </LinearLayout>
+                    <Button
+                        android:id="@+id/btn_pin_regen"
+                        android:layout_width="wrap_content"
+                        android:layout_height="36dp"
+                        android:text="Regenerate"
+                        android:textColor="#e2e2f0"
+                        android:textSize="12sp"
+                        android:stateListAnimator="@null"
+                        android:backgroundTint="#1e1e2e"/>
+                </LinearLayout>
+
+                <!-- Basic Auth rows -->
+                <LinearLayout
+                    android:id="@+id/layout_basic_row"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:layout_marginTop="14dp"
+                    android:visibility="gone">
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical">
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="USERNAME"
+                            android:textColor="#555570"
+                            android:textSize="11sp"
+                            android:letterSpacing="0.15"/>
+                        <EditText
+                            android:id="@+id/edit_basic_user"
+                            android:layout_width="140dp"
+                            android:layout_height="wrap_content"
+                            android:inputType="text"
+                            android:text="viewer"
+                            android:textColor="#e2e2f0"
+                            android:textSize="14sp"
+                            android:fontFamily="monospace"
+                            android:gravity="end"
+                            android:background="@android:color/transparent"
+                            android:singleLine="true"
+                            android:autofillHints=""/>
+                    </LinearLayout>
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:layout_marginTop="10dp">
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="PASSWORD"
+                            android:textColor="#555570"
+                            android:textSize="11sp"
+                            android:letterSpacing="0.15"/>
+                        <EditText
+                            android:id="@+id/edit_basic_pass"
+                            android:layout_width="140dp"
+                            android:layout_height="wrap_content"
+                            android:inputType="text"
+                            android:textColor="#e2e2f0"
+                            android:textSize="14sp"
+                            android:fontFamily="monospace"
+                            android:gravity="end"
+                            android:background="@android:color/transparent"
+                            android:singleLine="true"
+                            android:autofillHints=""/>
+                    </LinearLayout>
+                    <Button
+                        android:id="@+id/btn_basic_regen"
+                        android:layout_width="wrap_content"
+                        android:layout_height="36dp"
+                        android:text="Regenerate password"
+                        android:textColor="#e2e2f0"
+                        android:textSize="12sp"
+                        android:stateListAnimator="@null"
+                        android:backgroundTint="#1e1e2e"
+                        android:layout_marginTop="10dp"
+                        android:layout_gravity="end"/>
+                </LinearLayout>
+
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
+
         <!-- Start / Stop button -->
         <Button
             android:id="@+id/btn_toggle"
