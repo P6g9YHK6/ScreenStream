@@ -55,13 +55,29 @@ public class ErrorReporter {
         }
 
         String toJson() {
-            String m = message.replace("\"", "'").replace("\\", "/");
-            String d = detail != null ? detail.replace("\"", "'").replace("\\", "/") : "";
             return "{\"ts\":" + timestamp
-                + ",\"level\":\"" + level.name() + "\""
-                + ",\"source\":\"" + source.label + "\""
-                + ",\"msg\":\"" + m + "\""
-                + ",\"detail\":\"" + d + "\"}";
+                + ",\"level\":\"" + jsonEscape(level.name()) + "\""
+                + ",\"source\":\"" + jsonEscape(source.label) + "\""
+                + ",\"msg\":\"" + jsonEscape(message) + "\""
+                + ",\"detail\":\"" + jsonEscape(detail != null ? detail : "") + "\"}";
+        }
+
+        private static String jsonEscape(String s) {
+            StringBuilder sb = new StringBuilder(s.length() + 16);
+            for (int i = 0; i < s.length(); i++) {
+                char c = s.charAt(i);
+                switch (c) {
+                    case '"':  sb.append("\\\""); break;
+                    case '\\': sb.append("\\\\"); break;
+                    case '\n': sb.append("\\n");  break;
+                    case '\r': sb.append("\\r");  break;
+                    case '\t': sb.append("\\t");  break;
+                    default:
+                        if (c < 0x20) sb.append(String.format("\\u%04x", (int) c));
+                        else sb.append(c);
+                }
+            }
+            return sb.toString();
         }
     }
 
