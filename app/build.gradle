@@ -58,6 +58,12 @@ android {
     lint {
         disable 'HardcodedText', 'SetTextI18n'
     }
+
+    testOptions {
+        unitTests {
+            includeAndroidResources = true
+        }
+    }
 }
 
 dependencies {
@@ -65,4 +71,7 @@ dependencies {
     implementation 'androidx.activity:activity:1.10.1'
     implementation 'com.google.android.material:material:1.13.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.2.1'
+
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.robolectric:robolectric:4.13'
 }
