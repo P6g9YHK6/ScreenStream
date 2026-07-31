@@ -69,8 +69,8 @@ Leave the stream open on a wall-mounted screen or tablet to display a home autom
 ## Setup
 
 ```bash
-git clone https://github.com/P6g9YHK6/AndroidScreenStream.git
-cd AndroidScreenStream
+git clone https://github.com/P6g9YHK6/ScreenStream.git
+cd ScreenStream
 ```
 
 ## Build

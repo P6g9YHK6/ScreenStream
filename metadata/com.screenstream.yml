@@ -2,11 +2,12 @@ Categories:
   - Multimedia
   - System
 
-License: MIT
+License: MPL-2.0
 
 AuthorName: Screen Stream Contributors
-SourceCode: https://github.com/P6g9YHK6/AndroidScreenStream
-IssueTracker: https://github.com/P6g9YHK6/AndroidScreenStream/issues
+SourceCode: https://github.com/P6g9YHK6/ScreenStream
+IssueTracker: https://github.com/P6g9YHK6/ScreenStream/issues
+Changelog: https://github.com/P6g9YHK6/ScreenStream/releases
 
 AutoName: Screen Stream
 
@@ -34,7 +35,7 @@ Description: |-
   Audio streaming requires Android 10 or newer.
 
 RepoType: git
-Repo: https://github.com/P6g9YHK6/AndroidScreenStream
+Repo: https://github.com/P6g9YHK6/ScreenStream
 
 Builds:
   - versionName: '1.0'
