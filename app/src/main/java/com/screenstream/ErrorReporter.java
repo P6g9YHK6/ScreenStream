@@ -189,7 +189,7 @@ public class ErrorReporter {
 
             String copyText = "[" + error.source.label + " / " + error.level.name() + "]\n"
                 + error.message
-                + (error.detail != null ? "\n\n" + error.detail.substring(0, Math.min(500, error.detail.length())) : "");
+                + (error.detail != null ? "\n\n" + error.detail : "");
 
             Intent copyIntent = new Intent(ctx, CopyErrorReceiver.class);
             copyIntent.putExtra("error_text", copyText);
@@ -200,9 +200,7 @@ public class ErrorReporter {
                 ctx.getSystemService(Context.NOTIFICATION_SERVICE);
             if (nm == null) return;
 
-            String detail = error.detail != null
-                ? "\n\n" + error.detail.substring(0, Math.min(200, error.detail.length()))
-                : "";
+            String detail = error.detail != null ? "\n\n" + error.detail : "";
 
             nm.notify(NOTIF_ID, new NotificationCompat.Builder(ctx, CHANNEL_ID)
                 .setSmallIcon(android.R.drawable.ic_dialog_alert)
@@ -223,7 +221,6 @@ public class ErrorReporter {
         if (t == null) return "";
         java.io.StringWriter sw = new java.io.StringWriter(256);
         t.printStackTrace(new java.io.PrintWriter(sw));
-        String s = sw.toString();
-        return s.length() > 800 ? s.substring(0, 800) + "..." : s;
+        return sw.toString();
     }
 }

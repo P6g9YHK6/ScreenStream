@@ -193,6 +193,14 @@ public class ScreenStreamService extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
 
+        String action = (intent != null) ? intent.getAction() : null;
+
+        if (ACTION_STOP.equals(action)) {
+            stopCapture();
+            stopSelf();
+            return START_NOT_STICKY;
+        }
+
         startForeground(NOTIFICATION_ID, buildNotification(savedPort > 0 ? savedPort : 8080));
 
         if (intent == null) {
@@ -200,7 +208,6 @@ public class ScreenStreamService extends Service {
             stopSelf();
             return START_NOT_STICKY;
         }
-        String action = intent.getAction();
         if (ACTION_START.equals(action)) {
             savedResultCode = intent.getIntExtra(EXTRA_RESULT_CODE, android.app.Activity.RESULT_CANCELED);
             savedData       = intent.getParcelableExtra(EXTRA_DATA);
@@ -224,9 +231,6 @@ public class ScreenStreamService extends Service {
             startForeground(NOTIFICATION_ID, buildNotification(savedPort));
 
             new Thread(() -> startCapture(savedPort), "CaptureStart").start();
-        } else if (ACTION_STOP.equals(action)) {
-            stopCapture();
-            stopSelf();
         } else {
             ErrorReporter.get().warn(ErrorReporter.Source.SYSTEM, "Unknown action: " + action);
         }
