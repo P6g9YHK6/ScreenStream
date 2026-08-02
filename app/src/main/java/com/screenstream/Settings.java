@@ -20,6 +20,7 @@ public class Settings {
     public static final String KEY_PIN                  = "pin";
     public static final String KEY_BASIC_USER           = "basic_user";
     public static final String KEY_BASIC_PASS           = "basic_pass";
+    public static final String KEY_HTTPS_ENABLED        = "https_enabled";
 
     private final SharedPreferences prefs;
 

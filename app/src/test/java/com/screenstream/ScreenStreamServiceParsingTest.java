@@ -79,4 +79,31 @@ public class ScreenStreamServiceParsingTest {
         Map<String, String> headers = ScreenStreamService.parseHeaders(lines);
         assertTrue(headers.isEmpty());
     }
+
+    @Test
+    public void bindFailureMessageDetectsPermissionDenied() {
+        String msg = ScreenStreamService.bindFailureMessage(80, "bind failed: EACCES (Permission denied)");
+        assertTrue(msg.contains("needs root"));
+        assertTrue(msg.contains("80"));
+    }
+
+    @Test
+    public void bindFailureMessageDetectsAddressInUse() {
+        String msg = ScreenStreamService.bindFailureMessage(8080, "bind failed: EADDRINUSE (Address already in use)");
+        assertTrue(msg.contains("already in use"));
+        assertTrue(msg.contains("8080"));
+    }
+
+    @Test
+    public void bindFailureMessageFallsBackForUnknownCause() {
+        String msg = ScreenStreamService.bindFailureMessage(443, "something unexpected happened");
+        assertTrue(msg.contains("Failed to bind port 443"));
+        assertTrue(msg.contains("something unexpected happened"));
+    }
+
+    @Test
+    public void bindFailureMessageHandlesNullExceptionMessage() {
+        String msg = ScreenStreamService.bindFailureMessage(21, null);
+        assertTrue(msg.contains("Failed to bind port 21"));
+    }
 }

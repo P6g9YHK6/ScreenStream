@@ -22,6 +22,8 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.IBinder;
+import android.security.keystore.KeyGenParameterSpec;
+import android.security.keystore.KeyProperties;
 import android.util.Base64;
 import android.util.DisplayMetrics;
 import android.view.Display;
@@ -38,9 +40,14 @@ import java.io.PrintStream;
 import java.net.BindException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.security.GeneralSecurityException;
+import java.security.KeyPairGenerator;
+import java.security.KeyStore;
 import java.security.MessageDigest;
+import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -52,6 +59,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+
+import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLServerSocketFactory;
+import javax.security.auth.x500.X500Principal;
 
 public class ScreenStreamService extends Service {
 
@@ -75,12 +87,16 @@ public class ScreenStreamService extends Service {
     public static final String EXTRA_PIN         = "EXTRA_PIN";
     public static final String EXTRA_BASIC_USER  = "EXTRA_BASIC_USER";
     public static final String EXTRA_BASIC_PASS  = "EXTRA_BASIC_PASS";
+    public static final String EXTRA_HTTPS       = "EXTRA_HTTPS";
+
+    private static final String HTTPS_KEY_ALIAS = "screenstream_https_key";
 
     public enum AuthMode { NONE, PIN, BASIC }
 
     private static final AtomicInteger  jpegQuality     = new AtomicInteger(70);
     private static final AtomicInteger  targetFps       = new AtomicInteger(24);
     private static final AtomicBoolean  audioEnabled    = new AtomicBoolean(true);
+    private static final AtomicBoolean  httpsEnabled    = new AtomicBoolean(false);
     private static final AtomicInteger  audioSampleRate = new AtomicInteger(44100);
     private static final AtomicInteger  audioChannels   = new AtomicInteger(2);
     private static final AtomicInteger  audioEncoding   = new AtomicInteger(android.media.AudioFormat.ENCODING_PCM_16BIT);
@@ -162,6 +178,7 @@ public class ScreenStreamService extends Service {
     public static void setJpegQuality(int q)        { jpegQuality.set(q); }
     public static void setTargetFps(int fps)        { targetFps.set(fps); }
     public static void setAudioEnabled(boolean on)  { audioEnabled.set(on); }
+    public static void setHttpsEnabled(boolean on)  { httpsEnabled.set(on); }
     public static void setAudioSampleRate(int sr)   { audioSampleRate.set(sr); }
     public static void setAudioChannels(int ch)     { audioChannels.set(ch); }
     public static void setAudioEncoding(int enc)    { audioEncoding.set(enc); }
@@ -221,6 +238,7 @@ public class ScreenStreamService extends Service {
             jpegQuality.set(intent.getIntExtra(EXTRA_QUALITY, 70));
             targetFps.set(intent.getIntExtra(EXTRA_FPS, 24));
             audioEnabled.set(intent.getBooleanExtra(EXTRA_AUDIO, true));
+            httpsEnabled.set(intent.getBooleanExtra(EXTRA_HTTPS, false));
             audioSampleRate.set(intent.getIntExtra(EXTRA_AUDIO_SR, 44100));
             audioChannels.set(intent.getIntExtra(EXTRA_AUDIO_CH, 2));
             audioEncoding.set(intent.getIntExtra(EXTRA_AUDIO_ENC, android.media.AudioFormat.ENCODING_PCM_16BIT));
@@ -768,12 +786,53 @@ public class ScreenStreamService extends Service {
         startAudioCapture();
     }
 
+    private void ensureHttpsKeyExists() throws GeneralSecurityException, IOException {
+        KeyStore ks = KeyStore.getInstance("AndroidKeyStore");
+        ks.load(null);
+        if (ks.containsAlias(HTTPS_KEY_ALIAS)) return;
+
+        Calendar notBefore = Calendar.getInstance();
+        Calendar notAfter  = Calendar.getInstance();
+        notAfter.add(Calendar.YEAR, 30);
+
+        KeyPairGenerator kpg = KeyPairGenerator.getInstance(
+            KeyProperties.KEY_ALGORITHM_RSA, "AndroidKeyStore");
+        kpg.initialize(new KeyGenParameterSpec.Builder(HTTPS_KEY_ALIAS,
+                KeyProperties.PURPOSE_SIGN | KeyProperties.PURPOSE_DECRYPT)
+            .setKeySize(2048)
+            .setDigests(KeyProperties.DIGEST_SHA256, KeyProperties.DIGEST_SHA384, KeyProperties.DIGEST_SHA512)
+            .setSignaturePaddings(KeyProperties.SIGNATURE_PADDING_RSA_PKCS1, KeyProperties.SIGNATURE_PADDING_RSA_PSS)
+            .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_RSA_PKCS1)
+            .setCertificateSubject(new X500Principal("CN=ScreenStream Self-Signed"))
+            .setCertificateSerialNumber(BigInteger.ONE)
+            .setCertificateNotBefore(notBefore.getTime())
+            .setCertificateNotAfter(notAfter.getTime())
+            .build());
+        kpg.generateKeyPair();
+    }
+
+    private ServerSocket buildSslServerSocket(int port) throws GeneralSecurityException, IOException {
+        KeyStore ks = KeyStore.getInstance("AndroidKeyStore");
+        ks.load(null);
+        KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+        kmf.init(ks, null);
+        SSLContext ctx = SSLContext.getInstance("TLS");
+        ctx.init(kmf.getKeyManagers(), null, null);
+        return ((SSLServerSocketFactory) ctx.getServerSocketFactory()).createServerSocket(port);
+    }
+
     private void startHttpServer(int port) {
         serverThread = new Thread(() -> {
             try {
-                serverSocket = new ServerSocket(port);
+                if (httpsEnabled.get()) {
+                    ensureHttpsKeyExists();
+                    serverSocket = buildSslServerSocket(port);
+                } else {
+                    serverSocket = new ServerSocket(port);
+                }
                 serverSocket.setReuseAddress(true);
-                ErrorReporter.get().info(ErrorReporter.Source.HTTP_SERVER, "Listening on port " + port);
+                ErrorReporter.get().info(ErrorReporter.Source.HTTP_SERVER,
+                    (httpsEnabled.get() ? "Listening (HTTPS) on port " : "Listening on port ") + port);
                 while (!Thread.currentThread().isInterrupted()) {
                     try {
                         Socket client = serverSocket.accept();
@@ -787,7 +846,10 @@ public class ScreenStreamService extends Service {
                 }
             } catch (BindException be) {
                 ErrorReporter.get().error(ErrorReporter.Source.HTTP_SERVER,
-                    "Port " + port + " already in use", be);
+                    bindFailureMessage(port, be.getMessage()), be);
+            } catch (GeneralSecurityException gse) {
+                ErrorReporter.get().error(ErrorReporter.Source.HTTP_SERVER,
+                    "Failed to set up HTTPS certificate: " + gse.getMessage(), gse);
             } catch (IOException e) {
                 ErrorReporter.get().error(ErrorReporter.Source.HTTP_SERVER,
                     "Server socket error: " + e.getMessage(), e);
@@ -795,6 +857,19 @@ public class ScreenStreamService extends Service {
         }, "HttpServer");
         serverThread.setDaemon(true);
         serverThread.start();
+    }
+
+    static String bindFailureMessage(int port, String exceptionMessage) {
+        String msg = exceptionMessage != null ? exceptionMessage : "";
+        String lower = msg.toLowerCase(Locale.ROOT);
+        if (msg.contains("EACCES") || lower.contains("permission denied")) {
+            return "Port " + port + " needs root — Android only allows apps to bind ports "
+                + "1024 and above without root. Try a port ≥ 1024.";
+        }
+        if (msg.contains("EADDRINUSE") || lower.contains("address already in use")) {
+            return "Port " + port + " is already in use by another app.";
+        }
+        return "Failed to bind port " + port + ": " + msg;
     }
 
     private void handleClient(Socket socket) {

@@ -55,6 +55,7 @@ public class MainActivity extends AppCompatActivity {
     private SeekBar      seekBarQuality;
     private SwitchCompat switchAudio;
     private SwitchCompat switchAutoRestart;
+    private SwitchCompat switchHttps;
     private Spinner  spinnerSampleRate, spinnerChannels, spinnerEncoding, spinnerAuthMode;
     private EditText editPort, editBasicUser, editBasicPass;
     private View     layoutPinRow, layoutBasicRow;
@@ -65,6 +66,7 @@ public class MainActivity extends AppCompatActivity {
     private boolean autoRestart        = false;
     private int     selectedFps        = 24;
     private boolean audioEnabled       = true;
+    private boolean httpsEnabled       = false;
     private int     selectedSampleRate = 44100;
     private int     selectedChannels   = 2;
     private int     selectedEncoding   = AudioFormat.ENCODING_PCM_16BIT;
@@ -158,6 +160,7 @@ public class MainActivity extends AppCompatActivity {
         btnBasicRegen     = findViewById(R.id.btn_basic_regen);
         editBasicUser     = findViewById(R.id.edit_basic_user);
         editBasicPass     = findViewById(R.id.edit_basic_pass);
+        switchHttps        = findViewById(R.id.switch_https);
         btnCheckUpdates    = findViewById(R.id.btn_check_updates);
         tvUpdateStatus     = findViewById(R.id.tv_update_status);
 
@@ -168,6 +171,7 @@ public class MainActivity extends AppCompatActivity {
         setupPort();
         setupAutoRestart();
         setupAuth();
+        setupHttps();
         setupUpdateCheck();
 
         btnToggle.setOnClickListener(v -> { if (isStreaming) stopStreaming(); else requestCapturePermission(); });
@@ -232,6 +236,17 @@ public class MainActivity extends AppCompatActivity {
             audioEnabled = checked;
             ScreenStreamService.setAudioEnabled(checked);
             settings.putBoolean(Settings.KEY_AUDIO_ENABLED, checked);
+        });
+    }
+
+    private void setupHttps() {
+        httpsEnabled = settings.getBoolean(Settings.KEY_HTTPS_ENABLED, false);
+        switchHttps.setChecked(httpsEnabled);
+        ScreenStreamService.setHttpsEnabled(httpsEnabled);
+        switchHttps.setOnCheckedChangeListener((btn, checked) -> {
+            httpsEnabled = checked;
+            ScreenStreamService.setHttpsEnabled(checked);
+            settings.putBoolean(Settings.KEY_HTTPS_ENABLED, checked);
         });
     }
 
@@ -475,8 +490,8 @@ public class MainActivity extends AppCompatActivity {
         String text = editPort.getText().toString().trim();
         try {
             int port = Integer.parseInt(text);
-            if (port < 1024 || port > 65535) {
-                Toast.makeText(this, "Port must be between 1024 and 65535", Toast.LENGTH_SHORT).show();
+            if (port < 1 || port > 65535) {
+                Toast.makeText(this, "Port must be between 1 and 65535", Toast.LENGTH_SHORT).show();
                 editPort.setText(String.valueOf(selectedPort));
             } else {
                 selectedPort = port;
@@ -523,6 +538,7 @@ public class MainActivity extends AppCompatActivity {
         svc.putExtra(ScreenStreamService.EXTRA_QUALITY, seekBarQuality.getProgress());
         svc.putExtra(ScreenStreamService.EXTRA_FPS, selectedFps);
         svc.putExtra(ScreenStreamService.EXTRA_AUDIO, audioEnabled);
+        svc.putExtra(ScreenStreamService.EXTRA_HTTPS, httpsEnabled);
         svc.putExtra(ScreenStreamService.EXTRA_AUDIO_SR, selectedSampleRate);
         svc.putExtra(ScreenStreamService.EXTRA_AUDIO_CH, selectedChannels);
         svc.putExtra(ScreenStreamService.EXTRA_AUDIO_ENC, selectedEncoding);
@@ -549,7 +565,7 @@ public class MainActivity extends AppCompatActivity {
         tvStatus.setTextColor(getColor(R.color.green));
         btnToggle.setText("Stop Streaming");
         btnToggle.setBackgroundColor(getColor(R.color.red));
-        currentUrl = "http://" + getLocalIpAddress() + ":" + selectedPort;
+        currentUrl = (httpsEnabled ? "https://" : "http://") + getLocalIpAddress() + ":" + selectedPort;
         if (authMode == ScreenStreamService.AuthMode.PIN) {
             currentUrl += "/?pin=" + currentPin;
         }
@@ -576,6 +592,7 @@ public class MainActivity extends AppCompatActivity {
         for (Button b : new Button[]{btnFps5, btnFps10, btnFps15, btnFps24, btnFps30, btnFps60})
             b.setEnabled(on);
         switchAudio.setEnabled(on);
+        switchHttps.setEnabled(on);
         spinnerSampleRate.setEnabled(on);
         spinnerChannels.setEnabled(on);
         spinnerEncoding.setEnabled(on);
