@@ -133,31 +133,32 @@ jobs:
       - name: Grant execute permission
         run: chmod +x gradlew
 
-      - name: Build debug and unsigned release APKs
-        run: ./gradlew assembleDebug assembleRelease --no-daemon
+      - name: Decode keystore
+        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > keystore.jks
+
+      - name: Build signed release APK
+        run: ./gradlew assembleRelease --no-daemon
+        env:
+          KEYSTORE_PATH:     ${{ github.workspace }}/keystore.jks
+          KEY_ALIAS:         ${{ secrets.KEY_ALIAS }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_PASSWORD:      ${{ secrets.KEY_PASSWORD }}
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           name: Screen Stream ${{ github.ref_name }}
-          files: |
-            app/build/outputs/apk/debug/app-debug.apk
-            app/build/outputs/apk/release/app-release-unsigned.apk
+          files: app/build/outputs/apk/release/app-release.apk
           body: |
             ## Screen Stream ${{ github.ref_name }}
 
-            This project isn't code-signed for direct distribution; F-Droid
-            is the intended signed release channel.
-
             ### Install
-            Download `app-debug.apk` and sideload it:
+            Download `app-release.apk` and sideload it:
             ```
-            adb install app-debug.apk
+            adb install app-release.apk
             ```
 
-            `app-release-unsigned.apk` is the release build variant without a
-            signature, published for build verification (e.g. comparing
-            against F-Droid's reproducible build of the same commit), not
-            for direct installation.
+            This APK is used as the reference binary for F-Droid's
+            reproducible build verification of this release.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
