@@ -49,15 +49,17 @@ public class MainActivity extends AppCompatActivity {
 
     private static final SecureRandom secureRandom = new SecureRandom();
 
-    private TextView tvStatus, tvUrl, tvUrlLabel, tvUrlHint, tvQuality, tvFpsLabel, tvPin;
+    private TextView tvStatus, tvUrl, tvUrlLabel, tvUrlHint, tvQuality, tvFpsLabel, tvPin, tvUpdateStatus;
     private Button   btnToggle, btnFps5, btnFps10, btnFps15, btnFps24, btnFps30, btnFps60;
-    private Button   btnPinRegen, btnBasicRegen;
+    private Button   btnPinRegen, btnBasicRegen, btnCheckUpdates;
     private SeekBar      seekBarQuality;
     private SwitchCompat switchAudio;
     private SwitchCompat switchAutoRestart;
     private Spinner  spinnerSampleRate, spinnerChannels, spinnerEncoding, spinnerAuthMode;
     private EditText editPort, editBasicUser, editBasicPass;
     private View     layoutPinRow, layoutBasicRow;
+
+    private Settings settings;
 
     private boolean isStreaming        = false;
     private boolean autoRestart        = false;
@@ -70,9 +72,9 @@ public class MainActivity extends AppCompatActivity {
     private String  currentUrl         = "";
 
     private ScreenStreamService.AuthMode authMode  = ScreenStreamService.AuthMode.NONE;
-    private String currentPin = generatePin();
-    private String basicUser  = "viewer";
-    private String basicPass  = generatePassword();
+    private String currentPin;
+    private String basicUser;
+    private String basicPass;
 
     private final BroadcastReceiver stoppedReceiver = new BroadcastReceiver() {
         @Override
@@ -107,6 +109,8 @@ public class MainActivity extends AppCompatActivity {
             v.setPadding(bars.left, bars.top, bars.right, bars.bottom);
             return WindowInsetsCompat.CONSUMED;
         });
+
+        settings = new Settings(this);
 
         bindViewsAndListeners();
 
@@ -154,6 +158,8 @@ public class MainActivity extends AppCompatActivity {
         btnBasicRegen     = findViewById(R.id.btn_basic_regen);
         editBasicUser     = findViewById(R.id.edit_basic_user);
         editBasicPass     = findViewById(R.id.edit_basic_pass);
+        btnCheckUpdates    = findViewById(R.id.btn_check_updates);
+        tvUpdateStatus     = findViewById(R.id.tv_update_status);
 
         setupQuality();
         setupFps();
@@ -162,6 +168,7 @@ public class MainActivity extends AppCompatActivity {
         setupPort();
         setupAutoRestart();
         setupAuth();
+        setupUpdateCheck();
 
         btnToggle.setOnClickListener(v -> { if (isStreaming) stopStreaming(); else requestCapturePermission(); });
         tvUrl.setOnClickListener(v -> shareUrl());
@@ -173,13 +180,15 @@ public class MainActivity extends AppCompatActivity {
             seekBarQuality.setMin(10);
         }
         seekBarQuality.setMax(100);
-        seekBarQuality.setProgress(70);
-        tvQuality.setText("70%");
+        int savedQuality = settings.getInt(Settings.KEY_QUALITY, 70);
+        seekBarQuality.setProgress(savedQuality);
+        tvQuality.setText(savedQuality + "%");
         seekBarQuality.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override public void onProgressChanged(SeekBar s, int p, boolean f) {
                 int clamped = Math.max(10, p);
                 tvQuality.setText(clamped + "%");
                 ScreenStreamService.setJpegQuality(clamped);
+                settings.putInt(Settings.KEY_QUALITY, clamped);
             }
             @Override public void onStartTrackingTouch(SeekBar s) {}
             @Override public void onStopTrackingTouch(SeekBar s) {}
@@ -197,12 +206,13 @@ public class MainActivity extends AppCompatActivity {
         };
         for (Button b : new Button[]{btnFps5, btnFps10, btnFps15, btnFps24, btnFps30, btnFps60})
             b.setOnClickListener(click);
-        setFps(24);
+        setFps(settings.getInt(Settings.KEY_FPS, 24));
     }
 
     private void setFps(int fps) {
         selectedFps = fps;
         ScreenStreamService.setTargetFps(fps);
+        settings.putInt(Settings.KEY_FPS, fps);
         tvFpsLabel.setText("FPS: " + fps);
         int active   = getColor(R.color.colorPrimary);
         int inactive = getColor(R.color.btnInactive);
@@ -215,10 +225,13 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void setupAudio() {
-        switchAudio.setChecked(true);
+        audioEnabled = settings.getBoolean(Settings.KEY_AUDIO_ENABLED, true);
+        switchAudio.setChecked(audioEnabled);
+        ScreenStreamService.setAudioEnabled(audioEnabled);
         switchAudio.setOnCheckedChangeListener((btn, checked) -> {
             audioEnabled = checked;
             ScreenStreamService.setAudioEnabled(checked);
+            settings.putBoolean(Settings.KEY_AUDIO_ENABLED, checked);
         });
     }
 
@@ -232,11 +245,14 @@ public class MainActivity extends AppCompatActivity {
             android.R.layout.simple_spinner_item, srLabels);
         srAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerSampleRate.setAdapter(srAdapter);
-        spinnerSampleRate.setSelection(2);
+        selectedSampleRate = settings.getInt(Settings.KEY_AUDIO_SAMPLE_RATE, 44100);
+        spinnerSampleRate.setSelection(indexOf(srValues, selectedSampleRate, 2));
+        ScreenStreamService.setAudioSampleRate(selectedSampleRate);
         spinnerSampleRate.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override public void onItemSelected(AdapterView<?> p, View v, int pos, long id) {
                 selectedSampleRate = srValues[pos];
                 ScreenStreamService.setAudioSampleRate(selectedSampleRate);
+                settings.putInt(Settings.KEY_AUDIO_SAMPLE_RATE, selectedSampleRate);
             }
             @Override public void onNothingSelected(AdapterView<?> p) {}
         });
@@ -248,11 +264,14 @@ public class MainActivity extends AppCompatActivity {
             android.R.layout.simple_spinner_item, chLabels);
         chAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerChannels.setAdapter(chAdapter);
-        spinnerChannels.setSelection(1);
+        selectedChannels = settings.getInt(Settings.KEY_AUDIO_CHANNELS, 2);
+        spinnerChannels.setSelection(indexOf(chValues, selectedChannels, 1));
+        ScreenStreamService.setAudioChannels(selectedChannels);
         spinnerChannels.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override public void onItemSelected(AdapterView<?> p, View v, int pos, long id) {
                 selectedChannels = chValues[pos];
                 ScreenStreamService.setAudioChannels(selectedChannels);
+                settings.putInt(Settings.KEY_AUDIO_CHANNELS, selectedChannels);
             }
             @Override public void onNothingSelected(AdapterView<?> p) {}
         });
@@ -268,18 +287,29 @@ public class MainActivity extends AppCompatActivity {
             android.R.layout.simple_spinner_item, encLabels);
         encAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerEncoding.setAdapter(encAdapter);
-        spinnerEncoding.setSelection(0);
+        selectedEncoding = settings.getInt(Settings.KEY_AUDIO_ENCODING, AudioFormat.ENCODING_PCM_16BIT);
+        spinnerEncoding.setSelection(indexOf(encValues, selectedEncoding, 0));
+        ScreenStreamService.setAudioEncoding(selectedEncoding);
         spinnerEncoding.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override public void onItemSelected(AdapterView<?> p, View v, int pos, long id) {
                 selectedEncoding = encValues[pos];
                 ScreenStreamService.setAudioEncoding(selectedEncoding);
+                settings.putInt(Settings.KEY_AUDIO_ENCODING, selectedEncoding);
             }
             @Override public void onNothingSelected(AdapterView<?> p) {}
         });
     }
 
+    private static int indexOf(int[] values, int target, int fallback) {
+        for (int i = 0; i < values.length; i++) {
+            if (values[i] == target) return i;
+        }
+        return fallback;
+    }
+
     private void setupPort() {
-        editPort.setText(String.valueOf(DEFAULT_PORT));
+        selectedPort = settings.getInt(Settings.KEY_PORT, DEFAULT_PORT);
+        editPort.setText(String.valueOf(selectedPort));
         editPort.setOnFocusChangeListener((v, hasFocus) -> {
             if (!hasFocus) validateAndApplyPort();
         });
@@ -293,13 +323,29 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void setupAutoRestart() {
-        switchAutoRestart.setChecked(false);
+        autoRestart = settings.getBoolean(Settings.KEY_AUTO_RESTART, false);
+        switchAutoRestart.setChecked(autoRestart);
         switchAutoRestart.setOnCheckedChangeListener((btn, checked) -> {
             autoRestart = checked;
+            settings.putBoolean(Settings.KEY_AUTO_RESTART, checked);
         });
     }
 
     private void setupAuth() {
+        authMode = parseAuthModeName(settings.getString(Settings.KEY_AUTH_MODE, ScreenStreamService.AuthMode.NONE.name()));
+
+        currentPin = settings.getString(Settings.KEY_PIN, null);
+        if (currentPin == null) {
+            currentPin = generatePin();
+            settings.putString(Settings.KEY_PIN, currentPin);
+        }
+        basicUser = settings.getString(Settings.KEY_BASIC_USER, "viewer");
+        basicPass = settings.getString(Settings.KEY_BASIC_PASS, null);
+        if (basicPass == null) {
+            basicPass = generatePassword();
+            settings.putString(Settings.KEY_BASIC_PASS, basicPass);
+        }
+
         String[] labels = {"None", "PIN", "Basic Auth"};
         ArrayAdapter<String> adapter = new ArrayAdapter<>(this,
             android.R.layout.simple_spinner_item, labels);
@@ -314,6 +360,7 @@ public class MainActivity extends AppCompatActivity {
         spinnerAuthMode.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override public void onItemSelected(AdapterView<?> p, View v, int pos, long id) {
                 authMode = indexToAuthMode(pos);
+                settings.putString(Settings.KEY_AUTH_MODE, authMode.name());
                 updateAuthRowsVisibility();
             }
             @Override public void onNothingSelected(AdapterView<?> p) {}
@@ -321,18 +368,34 @@ public class MainActivity extends AppCompatActivity {
 
         btnPinRegen.setOnClickListener(v -> {
             currentPin = generatePin();
+            settings.putString(Settings.KEY_PIN, currentPin);
             tvPin.setText(currentPin);
         });
         btnBasicRegen.setOnClickListener(v -> {
             basicPass = generatePassword();
+            settings.putString(Settings.KEY_BASIC_PASS, basicPass);
             editBasicPass.setText(basicPass);
         });
         editBasicUser.setOnFocusChangeListener((v, hasFocus) -> {
-            if (!hasFocus) basicUser = editBasicUser.getText().toString();
+            if (!hasFocus) {
+                basicUser = editBasicUser.getText().toString();
+                settings.putString(Settings.KEY_BASIC_USER, basicUser);
+            }
         });
         editBasicPass.setOnFocusChangeListener((v, hasFocus) -> {
-            if (!hasFocus) basicPass = editBasicPass.getText().toString();
+            if (!hasFocus) {
+                basicPass = editBasicPass.getText().toString();
+                settings.putString(Settings.KEY_BASIC_PASS, basicPass);
+            }
         });
+    }
+
+    private static ScreenStreamService.AuthMode parseAuthModeName(String name) {
+        try {
+            return ScreenStreamService.AuthMode.valueOf(name);
+        } catch (Exception e) {
+            return ScreenStreamService.AuthMode.NONE;
+        }
     }
 
     private void updateAuthRowsVisibility() {
@@ -356,6 +419,47 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    private void setupUpdateCheck() {
+        tvUpdateStatus.setText("Build " + shortCommit(BuildConfig.GIT_COMMIT));
+        btnCheckUpdates.setOnClickListener(v -> runUpdateCheck());
+    }
+
+    private void runUpdateCheck() {
+        tvUpdateStatus.setText("Checking…");
+        UpdateChecker.checkForUpdate(new UpdateChecker.Callback() {
+            @Override public void onResult(boolean updateAvailable, String latestSha) {
+                if (isFinishing() || isDestroyed()) return;
+                if (updateAvailable) {
+                    tvUpdateStatus.setText("Update available (" + shortCommit(latestSha) + ")");
+                    showUpdateAvailableDialog(latestSha);
+                } else {
+                    tvUpdateStatus.setText("Up to date (" + shortCommit(BuildConfig.GIT_COMMIT) + ")");
+                    Toast.makeText(MainActivity.this, "You're on the latest commit", Toast.LENGTH_SHORT).show();
+                }
+            }
+            @Override public void onError(Exception e) {
+                if (isFinishing() || isDestroyed()) return;
+                tvUpdateStatus.setText("Update check failed");
+                Toast.makeText(MainActivity.this, "Couldn't check for updates", Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    private void showUpdateAvailableDialog(String latestSha) {
+        new AlertDialog.Builder(this)
+            .setTitle("Update available")
+            .setMessage("A newer commit (" + shortCommit(latestSha) + ") is on GitHub.\nThis build is "
+                + shortCommit(BuildConfig.GIT_COMMIT) + ".")
+            .setPositiveButton("View on GitHub", (d, w) -> startActivity(new Intent(Intent.ACTION_VIEW,
+                Uri.parse("https://github.com/P6g9YHK6/ScreenStream/commits/main"))))
+            .setNegativeButton("Later", null)
+            .show();
+    }
+
+    private static String shortCommit(String sha) {
+        return (sha != null && sha.length() >= 7) ? sha.substring(0, 7) : "unknown";
+    }
+
     private String generatePin() {
         return String.format(Locale.US, "%06d", secureRandom.nextInt(1_000_000));
     }
@@ -376,6 +480,7 @@ public class MainActivity extends AppCompatActivity {
                 editPort.setText(String.valueOf(selectedPort));
             } else {
                 selectedPort = port;
+                settings.putInt(Settings.KEY_PORT, selectedPort);
             }
         } catch (NumberFormatException e) {
             editPort.setText(String.valueOf(selectedPort));

@@ -2,6 +2,19 @@ plugins {
     id 'com.android.application'
 }
 
+def gitCommitHash = {
+    try {
+        def stdout = new ByteArrayOutputStream()
+        exec {
+            commandLine 'git', 'rev-parse', 'HEAD'
+            standardOutput = stdout
+        }
+        return stdout.toString().trim()
+    } catch (Exception ignored) {
+        return "unknown"
+    }
+}()
+
 android {
     namespace 'com.screenstream'
     compileSdk 36
@@ -13,6 +26,7 @@ android {
         versionCode 1
         versionName "1.0"
         resConfigs "en"
+        buildConfigField "String", "GIT_COMMIT", "\"${gitCommitHash}\""
     }
 
     signingConfigs {
@@ -48,6 +62,7 @@ android {
 
     buildFeatures {
         viewBinding true
+        buildConfig true
     }
 
     dependenciesInfo {
