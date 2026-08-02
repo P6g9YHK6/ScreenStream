@@ -85,14 +85,21 @@ jobs:
         run: ./gradlew assembleDebug --no-daemon
 
       - name: Build release APK (unsigned)
+        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
         run: ./gradlew assembleRelease --no-daemon
 
-      - name: Rename APKs
+      - name: Rename debug APK
         run: |
           SHORT="${GITHUB_SHA:0:7}"
           mkdir -p artifacts
           cp app/build/outputs/apk/debug/app-debug.apk \
              artifacts/ScreenStream-debug-${SHORT}.apk
+
+      - name: Rename release APK
+        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+        run: |
+          SHORT="${GITHUB_SHA:0:7}"
+          mkdir -p artifacts
           cp app/build/outputs/apk/release/app-release-unsigned.apk \
              artifacts/ScreenStream-release-unsigned-${SHORT}.apk
 
@@ -104,6 +111,7 @@ jobs:
           retention-days: 30
 
       - name: Upload release APK (unsigned)
+        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
         uses: actions/upload-artifact@v4
         with:
           name: ScreenStream-release-unsigned-${{ github.sha }}
