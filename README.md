@@ -118,7 +118,7 @@ Every push builds both a debug and unsigned release APK, available as workflow a
 ## Usage
 
 1. Open **ScreenStream** on your Android device
-2. Configure frame rate, quality, audio settings, port, authentication, and HTTPS as needed; these are remembered the next time you open the app
+2. Configure frame rate, quality, audio settings, port, authentication, and HTTPS as needed
 3. Tap **Start Streaming** and accept the screen capture prompt
 4. The app shows the stream URL, for example `http://192.168.1.42:8080`, or `https://192.168.1.42:8080` if the HTTPS toggle is on
 5. Open that URL in any browser on the same Wi-Fi network (accepting the certificate warning first if HTTPS is on)
