@@ -4,7 +4,7 @@ Categories:
 
 License: MPL-2.0
 
-AuthorName: Screen Stream Contributors
+AuthorName: P6g9YHK6
 SourceCode: https://github.com/P6g9YHK6/ScreenStream
 IssueTracker: https://github.com/P6g9YHK6/ScreenStream/issues
 Changelog: https://github.com/P6g9YHK6/ScreenStream/releases
@@ -20,11 +20,20 @@ Description: |-
   * Audio streaming with configurable sample rate (16/22/44.1/48 kHz) and channels (mono/stereo)
   * Adjustable frame rate: 5 / 10 / 15 / 24 / 30 / 60 fps
   * Adjustable JPEG quality for bandwidth control
+  * Any port from 1 to 65535, with a clear error if a port needs root
+  * Optional PIN or Basic Auth to restrict who can view the stream
+  * Optional self-signed HTTPS instead of plain HTTP
+  * Settings remembered across restarts
   * Automatic adaptation to screen rotation, foldable phones, and display size changes
   * Auto-reconnect on both video and audio streams
   * Fullscreen mode on the viewer page shows only the stream
-  * No internet connection required — purely local network
   * No tracking, no ads, no analytics
+
+  <b>Network use</b>
+  The app never phones home on its own. The only feature that reaches the
+  internet is an optional, manual update check that compares the installed
+  build against the latest commit on GitHub, and it only runs when you tap
+  "Check Now".
 
   <b>How to use</b>
   1. Open the app and tap "Start Streaming"
