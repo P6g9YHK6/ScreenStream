@@ -91,7 +91,7 @@ cd ScreenStream
 ### Prerequisites
 
 - Android Studio Hedgehog (2023.1) or newer
-- JDK 17
+- JDK 21
 - Android SDK with API 36
 
 ### From Android Studio
