@@ -16,7 +16,7 @@ Binaries: https://github.com/P6g9YHK6/ScreenStream/releases/download/v%v/app-rel
 Builds:
   - versionName: '1.0'
     versionCode: 1
-    commit: d28f5dd8e096c58dbe0ad6c50411002fde6524a4
+    commit: 8d3399eae0ab09486d024183abf89f055cef8800
     subdir: app
     gradle:
       - yes
