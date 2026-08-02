@@ -1,5 +1,9 @@
 # Screen Stream
 
+<p align="center">
+  <img src="graphics/icon.svg" width="120" height="120" alt="ScreenStream logo" />
+</p>
+
 > **Experimental** — core functionality works but the project is under active development. Expect rough edges.
 
 Stream your Android screen to any browser on your local Wi-Fi network. No accounts, no cloud, no cables. Open the app, tap Start, and share the URL anyone on the same network can watch immediately in Chrome, Firefox, Safari, or any modern browser.
@@ -15,7 +19,8 @@ This project is functional for its primary use cases but should be considered ex
 - Live MJPEG video streaming works reliably on most devices
 - Audio streaming works on Android 10+ but may have latency depending on network conditions
 - Screen rotation and foldable display adaptation is implemented but may show brief freezes during the transition
-- No authentication — anyone on the network can view the stream while it is running
+- Authentication is opt-in (PIN or Basic Auth) — with it off, anyone on the network can view the stream
+- HTTPS uses a self-signed certificate, so browsers will show a security warning that has to be accepted manually
 
 ---
 
@@ -25,10 +30,15 @@ This project is functional for its primary use cases but should be considered ex
 - **Audio streaming** — captures device audio playback with configurable sample rate (16 / 22 / 44.1 / 48 kHz), channels (mono / stereo), and encoding (PCM 8-bit / 16-bit / 32-bit float)
 - **Adjustable frame rate** — 5, 10, 15, 24, 30, or 60 fps
 - **JPEG quality slider** — trade image sharpness for bandwidth
-- **Configurable port** — change the HTTP port from the default 8080
+- **Configurable port** — any port from 1 to 65535, not just the default 8080 (ports below 1024 need root, and the app will tell you clearly if a port can't be bound)
+- **Authentication** — optionally require a PIN or Basic Auth username/password to view the stream
+- **Self-signed HTTPS** — optional toggle to serve over TLS instead of plain HTTP
+- **Auto-restart** — automatically re-request the capture permission if the system stops the stream
+- **Update check** — compares the running build against the latest commit on GitHub and links to it if you're behind
+- **Settings remembered** — quality, frame rate, audio config, port, and auth settings persist across app restarts
 - **Rotation and fold aware** — the viewer page adapts when you rotate or unfold the phone
 - **Auto-reconnect** — both video and audio streams reconnect automatically if interrupted
-- **No internet required** — everything stays on your local network
+- **No internet required** — everything stays on your local network (the optional update check is the only feature that reaches the internet, and only when you tap "Check Now")
 
 ---
 
@@ -79,7 +89,7 @@ cd ScreenStream
 
 - Android Studio Hedgehog (2023.1) or newer
 - JDK 17
-- Android SDK with API 34
+- Android SDK with API 36
 
 ### From Android Studio
 
@@ -105,10 +115,10 @@ Every push builds both a debug and unsigned release APK, available as workflow a
 ## Usage
 
 1. Open **ScreenStream** on your Android device
-2. Configure frame rate, quality, audio settings, and port as needed
+2. Configure frame rate, quality, audio settings, port, authentication, and HTTPS as needed — these are remembered the next time you open the app
 3. Tap **Start Streaming** and accept the screen capture prompt
-4. The app shows the stream URL — for example `http://192.168.1.42:8080`
-5. Open that URL in any browser on the same Wi-Fi network
+4. The app shows the stream URL — for example `http://192.168.1.42:8080`, or `https://192.168.1.42:8080` if the HTTPS toggle is on
+5. Open that URL in any browser on the same Wi-Fi network (accepting the certificate warning first if HTTPS is on)
 
 ---
 
@@ -126,7 +136,8 @@ Every push builds both a debug and unsigned release APK, available as workflow a
 
 ## Known limitations
 
-- No encryption or authentication — the stream is accessible to anyone on the network
+- Encryption and authentication are both opt-in and off by default — the stream is accessible to anyone on the network unless you turn them on
+- The self-signed HTTPS certificate has no Subject Alternative Name, so browsers show a certificate warning in addition to the usual self-signed warning; this is cosmetic and doesn't affect functionality
 - Audio streaming is PCM over raw HTTP; some browsers may not support auto-play without a user gesture
 - Maximum capture resolution is capped at 1280px on the long edge for performance
 - Not tested on all Android versions or device configurations
