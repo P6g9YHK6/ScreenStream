@@ -8,36 +8,29 @@ import static org.junit.Assert.assertTrue;
 public class UpdateCheckerTest {
 
     @Test
-    public void differentShaMeansUpdateAvailable() {
-        assertTrue(UpdateChecker.isUpdateAvailable(
-            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-            "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"));
+    public void differentVersionMeansUpdateAvailable() {
+        assertTrue(UpdateChecker.isUpdateAvailable("1.0", "1.1"));
     }
 
     @Test
-    public void sameShaMeansUpToDate() {
-        assertFalse(UpdateChecker.isUpdateAvailable(
-            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"));
+    public void sameVersionMeansUpToDate() {
+        assertFalse(UpdateChecker.isUpdateAvailable("1.0", "1.0"));
     }
 
     @Test
     public void comparisonIsCaseInsensitive() {
-        assertFalse(UpdateChecker.isUpdateAvailable(
-            "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
-            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"));
+        assertFalse(UpdateChecker.isUpdateAvailable("1.0-RC", "1.0-rc"));
     }
 
     @Test
-    public void unknownLocalCommitNeverReportsAnUpdate() {
-        assertFalse(UpdateChecker.isUpdateAvailable("unknown", "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"));
-        assertFalse(UpdateChecker.isUpdateAvailable("", "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"));
-        assertFalse(UpdateChecker.isUpdateAvailable(null, "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"));
+    public void emptyCurrentVersionNeverReportsAnUpdate() {
+        assertFalse(UpdateChecker.isUpdateAvailable("", "1.1"));
+        assertFalse(UpdateChecker.isUpdateAvailable(null, "1.1"));
     }
 
     @Test
-    public void missingRemoteShaNeverReportsAnUpdate() {
-        assertFalse(UpdateChecker.isUpdateAvailable("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", null));
-        assertFalse(UpdateChecker.isUpdateAvailable("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", ""));
+    public void missingLatestVersionNeverReportsAnUpdate() {
+        assertFalse(UpdateChecker.isUpdateAvailable("1.0", null));
+        assertFalse(UpdateChecker.isUpdateAvailable("1.0", ""));
     }
 }

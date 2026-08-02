@@ -435,21 +435,21 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void setupUpdateCheck() {
-        tvUpdateStatus.setText("Build " + shortCommit(BuildConfig.GIT_COMMIT));
+        tvUpdateStatus.setText("Version " + BuildConfig.VERSION_NAME);
         btnCheckUpdates.setOnClickListener(v -> runUpdateCheck());
     }
 
     private void runUpdateCheck() {
         tvUpdateStatus.setText("Checking…");
         UpdateChecker.checkForUpdate(new UpdateChecker.Callback() {
-            @Override public void onResult(boolean updateAvailable, String latestSha) {
+            @Override public void onResult(boolean updateAvailable, String latestVersion) {
                 if (isFinishing() || isDestroyed()) return;
                 if (updateAvailable) {
-                    tvUpdateStatus.setText("Update available (" + shortCommit(latestSha) + ")");
-                    showUpdateAvailableDialog(latestSha);
+                    tvUpdateStatus.setText("Update available (" + latestVersion + ")");
+                    showUpdateAvailableDialog(latestVersion);
                 } else {
-                    tvUpdateStatus.setText("Up to date (" + shortCommit(BuildConfig.GIT_COMMIT) + ")");
-                    Toast.makeText(MainActivity.this, "You're on the latest commit", Toast.LENGTH_SHORT).show();
+                    tvUpdateStatus.setText("Up to date (" + BuildConfig.VERSION_NAME + ")");
+                    Toast.makeText(MainActivity.this, "You're on the latest version", Toast.LENGTH_SHORT).show();
                 }
             }
             @Override public void onError(Exception e) {
@@ -460,19 +460,15 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    private void showUpdateAvailableDialog(String latestSha) {
+    private void showUpdateAvailableDialog(String latestVersion) {
         new AlertDialog.Builder(this)
             .setTitle("Update available")
-            .setMessage("A newer commit (" + shortCommit(latestSha) + ") is on GitHub.\nThis build is "
-                + shortCommit(BuildConfig.GIT_COMMIT) + ".")
+            .setMessage("Version " + latestVersion + " is available on GitHub.\nThis build is "
+                + BuildConfig.VERSION_NAME + ".")
             .setPositiveButton("View on GitHub", (d, w) -> startActivity(new Intent(Intent.ACTION_VIEW,
-                Uri.parse("https://github.com/P6g9YHK6/ScreenStream/commits/main"))))
+                Uri.parse("https://github.com/P6g9YHK6/ScreenStream/releases"))))
             .setNegativeButton("Later", null)
             .show();
-    }
-
-    private static String shortCommit(String sha) {
-        return (sha != null && sha.length() >= 7) ? sha.substring(0, 7) : "unknown";
     }
 
     private String generatePin() {

@@ -14,11 +14,11 @@ import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-/** Checks whether the commit this build was compiled from is behind the repo's main branch on GitHub. */
+/** Checks whether this build's version is behind the repo's latest GitHub Release. */
 public class UpdateChecker {
 
     private static final String API_URL =
-        "https://api.github.com/repos/P6g9YHK6/ScreenStream/commits/main";
+        "https://api.github.com/repos/P6g9YHK6/ScreenStream/releases/latest";
 
     private static final ExecutorService executor = Executors.newSingleThreadExecutor(r -> {
         Thread t = new Thread(r, "UpdateChecker");
@@ -27,7 +27,7 @@ public class UpdateChecker {
     });
 
     public interface Callback {
-        void onResult(boolean updateAvailable, String latestSha);
+        void onResult(boolean updateAvailable, String latestVersion);
         void onError(Exception e);
     }
 
@@ -38,22 +38,22 @@ public class UpdateChecker {
         Handler mainHandler = new Handler(Looper.getMainLooper());
         executor.execute(() -> {
             try {
-                String latestSha = fetchLatestMainSha();
-                boolean updateAvailable = isUpdateAvailable(BuildConfig.GIT_COMMIT, latestSha);
-                mainHandler.post(() -> callback.onResult(updateAvailable, latestSha));
+                String latestVersion = fetchLatestReleaseVersion();
+                boolean updateAvailable = isUpdateAvailable(BuildConfig.VERSION_NAME, latestVersion);
+                mainHandler.post(() -> callback.onResult(updateAvailable, latestVersion));
             } catch (Exception e) {
                 mainHandler.post(() -> callback.onError(e));
             }
         });
     }
 
-    static boolean isUpdateAvailable(String currentSha, String latestSha) {
-        if (currentSha == null || currentSha.isEmpty() || "unknown".equalsIgnoreCase(currentSha)) return false;
-        if (latestSha == null || latestSha.isEmpty()) return false;
-        return !latestSha.equalsIgnoreCase(currentSha);
+    static boolean isUpdateAvailable(String currentVersion, String latestVersion) {
+        if (currentVersion == null || currentVersion.isEmpty()) return false;
+        if (latestVersion == null || latestVersion.isEmpty()) return false;
+        return !latestVersion.equalsIgnoreCase(currentVersion);
     }
 
-    private static String fetchLatestMainSha() throws IOException, org.json.JSONException {
+    private static String fetchLatestReleaseVersion() throws IOException, org.json.JSONException {
         HttpURLConnection conn = (HttpURLConnection) new URL(API_URL).openConnection();
         conn.setRequestProperty("Accept", "application/vnd.github+json");
         conn.setConnectTimeout(8000);
@@ -68,7 +68,8 @@ public class UpdateChecker {
                 String line;
                 while ((line = reader.readLine()) != null) sb.append(line);
             }
-            return new JSONObject(sb.toString()).getString("sha");
+            String tag = new JSONObject(sb.toString()).getString("tag_name");
+            return tag.startsWith("v") ? tag.substring(1) : tag;
         } finally {
             conn.disconnect();
         }
