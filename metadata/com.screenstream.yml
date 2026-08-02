@@ -1,16 +1,13 @@
 Categories:
+  - Cast
   - Multimedia
-  - System
-
 License: MPL-2.0
-
 AuthorName: P6g9YHK6
 SourceCode: https://github.com/P6g9YHK6/ScreenStream
 IssueTracker: https://github.com/P6g9YHK6/ScreenStream/issues
 Changelog: https://github.com/P6g9YHK6/ScreenStream/releases
 
 AutoName: Screen Stream
-
 Description: |-
   Stream your Android screen to any browser on your local Wi-Fi network.
   No accounts, no cloud, no cables required.
