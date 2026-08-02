@@ -111,7 +111,7 @@ jobs:
           retention-days: 30
 
   release:
-    name: Signed release
+    name: GitHub release
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
     needs: build
@@ -131,29 +131,31 @@ jobs:
       - name: Grant execute permission
         run: chmod +x gradlew
 
-      - name: Decode keystore
-        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > keystore.jks
-
-      - name: Build signed release APK
-        run: ./gradlew assembleRelease --no-daemon
-        env:
-          KEYSTORE_PATH:     ${{ github.workspace }}/keystore.jks
-          KEY_ALIAS:         ${{ secrets.KEY_ALIAS }}
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_PASSWORD:      ${{ secrets.KEY_PASSWORD }}
+      - name: Build debug and unsigned release APKs
+        run: ./gradlew assembleDebug assembleRelease --no-daemon
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           name: Screen Stream ${{ github.ref_name }}
-          files: app/build/outputs/apk/release/app-release.apk
+          files: |
+            app/build/outputs/apk/debug/app-debug.apk
+            app/build/outputs/apk/release/app-release-unsigned.apk
           body: |
             ## Screen Stream ${{ github.ref_name }}
 
+            This project isn't code-signed for direct distribution; F-Droid
+            is the intended signed release channel.
+
             ### Install
-            Download `app-release.apk` and sideload:
+            Download `app-debug.apk` and sideload it:
             ```
-            adb install app-release.apk
+            adb install app-debug.apk
             ```
+
+            `app-release-unsigned.apk` is the release build variant without a
+            signature, published for build verification (e.g. comparing
+            against F-Droid's reproducible build of the same commit), not
+            for direct installation.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

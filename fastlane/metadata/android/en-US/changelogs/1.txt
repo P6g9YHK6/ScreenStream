@@ -3,6 +3,8 @@ Initial release.
 • Live MJPEG screen streaming to any browser on local Wi-Fi
 • Audio streaming with sample rate and channel selection
 • Configurable FPS (5/10/15/24/30/60) and JPEG quality
-• Automatic adaptation to screen rotation and foldable displays
-• Auto-reconnect on stream interruption
-• Fullscreen viewer mode
+• Any port from 1 to 65535, with a clear error if one needs root
+• Optional PIN or Basic Auth, and self-signed HTTPS
+• Settings remembered between sessions
+• Manual update check against GitHub
+• Rotation/fold aware viewer with auto-reconnect and fullscreen mode

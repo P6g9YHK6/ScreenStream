@@ -4,15 +4,24 @@ Open the app, tap Start Streaming, and share the URL with anyone on the same net
 
 FEATURES
 
-• Live MJPEG video — works in every modern browser with no plugins
-• Audio streaming — captures device audio playback (Android 10+), configurable sample rate and stereo/mono
-• Frame rate selector — 5, 10, 15, 24, 30, or 60 fps
-• JPEG quality slider — tune bandwidth vs. image sharpness
-• Orientation aware — the viewer page adapts when you rotate or unfold your phone
-• Auto-reconnect — video and audio streams reconnect automatically if interrupted
-• Fullscreen mode — one button shows only the stream, no browser chrome
-• Zero cloud — everything stays on your local network
+• Live MJPEG video: works in every modern browser with no plugins
+• Audio streaming: captures device audio playback (Android 10+), configurable sample rate and stereo/mono
+• Frame rate selector: 5, 10, 15, 24, 30, or 60 fps
+• JPEG quality slider: tune bandwidth vs. image sharpness
+• Configurable port: any port from 1 to 65535, not just the default 8080, with a clear error if a port needs root
+• Authentication: optional PIN or Basic Auth to restrict who can view the stream
+• Self-signed HTTPS: optional toggle to serve over TLS instead of plain HTTP
+• Auto-restart: automatically re-requests the capture permission if the system stops the stream
+• Settings remembered: quality, frame rate, audio, port, and auth settings persist across restarts
+• Orientation aware: the viewer page adapts when you rotate or unfold your phone
+• Auto-reconnect: video and audio streams reconnect automatically if interrupted
+• Fullscreen mode: one button shows only the stream, no browser chrome
+• Zero cloud: everything stays on your local network
 • No tracking, no ads, no analytics of any kind
+
+NETWORK USE
+
+The app never phones home on its own. The only feature that reaches the internet is an optional, manual update check: tapping "Check Now" compares the installed build against the latest commit on the project's GitHub repository. It sends no personal data and only runs when you tap the button.
 
 REQUIREMENTS
 
@@ -22,7 +31,8 @@ REQUIREMENTS
 
 PERMISSIONS
 
-• FOREGROUND_SERVICE / MEDIA_PROJECTION — required to capture the screen while the app is running
-• INTERNET — to serve the HTTP stream to other devices on the network
-• RECORD_AUDIO — optional, used only when audio streaming is enabled
-• ACCESS_WIFI_STATE — to display your local IP address
+• FOREGROUND_SERVICE / MEDIA_PROJECTION: required to capture the screen while the app is running
+• INTERNET: to serve the HTTP stream to other devices on the network, and for the optional manual update check
+• RECORD_AUDIO: optional, used only when audio streaming is enabled
+• ACCESS_WIFI_STATE: to display your local IP address
+• POST_NOTIFICATIONS: to show error notifications on Android 13+
