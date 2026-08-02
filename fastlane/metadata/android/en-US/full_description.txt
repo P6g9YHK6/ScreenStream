@@ -21,7 +21,7 @@ FEATURES
 
 NETWORK USE
 
-The app never phones home on its own. The only feature that reaches the internet is an optional, manual update check: tapping "Check Now" compares the installed build against the latest commit on the project's GitHub repository. It sends no personal data and only runs when you tap the button.
+The app never phones home on its own. The only feature that reaches the internet is an optional, manual update check: tapping "Check Now" compares the installed version against the latest release on the project's GitHub repository. It sends no personal data and only runs when you tap the button.
 
 REQUIREMENTS
 
