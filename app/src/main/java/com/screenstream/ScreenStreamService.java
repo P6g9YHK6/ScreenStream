@@ -635,6 +635,15 @@ public class ScreenStreamService extends Service {
             imageHandler = null;
         }
         latestFrame.set(null);
+
+        // Close the listener so the next startCapture() rebuilds it fresh against the
+        // current httpsEnabled value, instead of possibly reusing a socket opened under
+        // a different protocol from a prior start/stop cycle.
+        if (serverThread != null) { serverThread.interrupt(); serverThread = null; }
+        if (serverSocket != null) {
+            try { serverSocket.close(); } catch (IOException ignored) {}
+            serverSocket = null;
+        }
     }
 
     @RequiresApi(api = Build.VERSION_CODES.Q)

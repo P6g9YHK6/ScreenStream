@@ -100,6 +100,17 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+    // RECORD_AUDIO is a dangerous permission and is required for AudioPlaybackCaptureConfiguration
+    // even though it captures device playback, not the microphone. Without this, AudioRecord
+    // construction throws SecurityException and audio silently never works.
+    private final ActivityResultLauncher<String> audioPermissionLauncher =
+        registerForActivityResult(new ActivityResultContracts.RequestPermission(), granted -> {
+            if (!granted) {
+                Toast.makeText(this, "Audio permission denied, streaming without audio", Toast.LENGTH_SHORT).show();
+            }
+            launchCapturePermission();
+        });
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         EdgeToEdge.enable(this);
@@ -520,6 +531,15 @@ public class MainActivity extends AppCompatActivity {
 
     private void requestCapturePermission() {
         validateAndApplyPort();
+        if (audioEnabled && ActivityCompat.checkSelfPermission(this,
+                android.Manifest.permission.RECORD_AUDIO) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            audioPermissionLauncher.launch(android.Manifest.permission.RECORD_AUDIO);
+        } else {
+            launchCapturePermission();
+        }
+    }
+
+    private void launchCapturePermission() {
         MediaProjectionManager mpm =
             (MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
         projectionLauncher.launch(mpm.createScreenCaptureIntent());
@@ -668,13 +688,10 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public void onConfigurationChanged(android.content.res.Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
-
-        setContentView(R.layout.activity_main);
-        bindViewsAndListeners();
-        switchAutoRestart.setChecked(autoRestart);
-
-        if (isStreaming) updateStatusRunning();
-        else updateStatusStopped();
+        // activity_main.xml has no orientation-specific variant, so there's nothing to
+        // re-inflate here. Re-inflating on every rotation used to cause a visibly
+        // double-rendered frame on lower-end devices, and could swallow the tap that was
+        // meant to reach the "Start Streaming" button.
     }
 
     @Override
