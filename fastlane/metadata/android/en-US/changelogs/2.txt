@@ -1,0 +1,5 @@
+Bug fixes from F-Droid review:
+
+• Fixed HTTPS mode sometimes serving plain HTTP under an https:// URL (showed up as ERR_CONNECTION_CLOSED in browsers) after stopping and restarting with the HTTPS switch toggled
+• Fixed a UI glitch on rotation that could flash overlapping content and swallow the "Start Streaming" tap on some devices
+• Fixed audio never actually starting because the RECORD_AUDIO permission was never requested at runtime
