@@ -22,6 +22,7 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.IBinder;
+import android.os.PowerManager;
 import android.security.keystore.KeyGenParameterSpec;
 import android.security.keystore.KeyProperties;
 import android.util.Base64;
@@ -47,6 +48,9 @@ import java.security.GeneralSecurityException;
 import java.security.KeyPairGenerator;
 import java.security.KeyStore;
 import java.security.MessageDigest;
+import java.security.Principal;
+import java.security.PrivateKey;
+import java.security.cert.X509Certificate;
 import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Locale;
@@ -60,9 +64,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
+import javax.net.ssl.KeyManager;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLServerSocketFactory;
+import javax.net.ssl.X509ExtendedKeyManager;
 import javax.security.auth.x500.X500Principal;
 
 public class ScreenStreamService extends Service {
@@ -88,8 +95,19 @@ public class ScreenStreamService extends Service {
     public static final String EXTRA_BASIC_USER  = "EXTRA_BASIC_USER";
     public static final String EXTRA_BASIC_PASS  = "EXTRA_BASIC_PASS";
     public static final String EXTRA_HTTPS       = "EXTRA_HTTPS";
+    public static final String EXTRA_KEEP_AWAKE  = "EXTRA_KEEP_AWAKE";
 
-    private static final String HTTPS_KEY_ALIAS = "screenstream_https_key";
+    // v2: the original key was generated declaring three digests (SHA-256/384/512).
+    // Some KeyMint/StrongBox TEE implementations (confirmed via logcat on a real
+    // device: Keystore2 threw Error::Km(INCOMPATIBLE_DIGEST) from inside Conscrypt's
+    // RSA sign call during the TLS handshake, every single time, for every digest
+    // tried) encode a multi-digest RSA signing key in a way that's unusable at sign
+    // time even though key generation itself succeeds. ensureHttpsKeyExists() only
+    // (re)generates a key if the alias doesn't already exist, so an app update alone
+    // never replaced an already-broken key with a fresh single-digest one - the
+    // alias needs to change too, so every device gets a new key under the current
+    // (single-digest) KeyGenParameterSpec below.
+    private static final String HTTPS_KEY_ALIAS = "screenstream_https_key_v5";
 
     public enum AuthMode { NONE, PIN, BASIC }
 
@@ -138,6 +156,7 @@ public class ScreenStreamService extends Service {
     private final AtomicBoolean rebuildPending = new AtomicBoolean(false);
     private volatile int        lastKnownW = 0, lastKnownH = 0;
     private DisplayManager      displayManager;
+    private PowerManager.WakeLock wakeLock;
 
     private final DisplayManager.DisplayListener displayListener = new DisplayManager.DisplayListener() {
         @Override public void onDisplayAdded(int id) {}
@@ -245,6 +264,8 @@ public class ScreenStreamService extends Service {
             setAuthMode(parseAuthMode(intent.getStringExtra(EXTRA_AUTH_MODE)));
             setRequiredPin(intent.getStringExtra(EXTRA_PIN));
             setBasicCredentials(intent.getStringExtra(EXTRA_BASIC_USER), intent.getStringExtra(EXTRA_BASIC_PASS));
+
+            if (intent.getBooleanExtra(EXTRA_KEEP_AWAKE, true)) acquireWakeLock();
 
             startForeground(NOTIFICATION_ID, buildNotification(savedPort));
 
@@ -644,6 +665,38 @@ public class ScreenStreamService extends Service {
             try { serverSocket.close(); } catch (IOException ignored) {}
             serverSocket = null;
         }
+
+        releaseWakeLock();
+    }
+
+    private void acquireWakeLock() {
+        if (wakeLock != null && wakeLock.isHeld()) return;
+        try {
+            PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
+            if (pm == null) return;
+            // SCREEN_BRIGHT_WAKE_LOCK is deprecated in favor of Window's
+            // FLAG_KEEP_SCREEN_ON, but that only works while an Activity is in the
+            // foreground. Streaming runs from this Service independent of MainActivity
+            // (the whole point is the screen keeps mirroring after you leave the app),
+            // so the deprecated screen-level wake lock is the only mechanism that
+            // actually applies here.
+            @SuppressWarnings("deprecation")
+            PowerManager.WakeLock lock = pm.newWakeLock(
+                PowerManager.SCREEN_BRIGHT_WAKE_LOCK | PowerManager.ON_AFTER_RELEASE,
+                "ScreenStream:keepAwake");
+            lock.setReferenceCounted(false);
+            lock.acquire();
+            wakeLock = lock;
+        } catch (Exception e) {
+            ErrorReporter.get().warn(ErrorReporter.Source.SYSTEM, "Failed to acquire wake lock: " + e.getMessage());
+        }
+    }
+
+    private void releaseWakeLock() {
+        if (wakeLock != null) {
+            try { if (wakeLock.isHeld()) wakeLock.release(); } catch (Exception ignored) {}
+            wakeLock = null;
+        }
     }
 
     @RequiresApi(api = Build.VERSION_CODES.Q)
@@ -798,6 +851,23 @@ public class ScreenStreamService extends Service {
     private void ensureHttpsKeyExists() throws GeneralSecurityException, IOException {
         KeyStore ks = KeyStore.getInstance("AndroidKeyStore");
         ks.load(null);
+
+        // Clean up any key left behind under an old alias from a previous app version
+        // (the alias has changed a few times while chasing KeyMint digest/padding
+        // compatibility issues). Otherwise it just sits there unused forever, and -
+        // more importantly - a stale entry is exactly what caused buildSslServerSocket()
+        // to keep resolving to a broken key even after HTTPS_KEY_ALIAS pointed at a
+        // working one, before FixedAliasKeyManager forced the alias explicitly.
+        try {
+            java.util.Enumeration<String> aliases = ks.aliases();
+            while (aliases.hasMoreElements()) {
+                String alias = aliases.nextElement();
+                if (alias.startsWith("screenstream_https_key") && !alias.equals(HTTPS_KEY_ALIAS)) {
+                    ks.deleteEntry(alias);
+                }
+            }
+        } catch (GeneralSecurityException ignored) {}
+
         if (ks.containsAlias(HTTPS_KEY_ALIAS)) return;
 
         Calendar notBefore = Calendar.getInstance();
@@ -809,14 +879,27 @@ public class ScreenStreamService extends Service {
         kpg.initialize(new KeyGenParameterSpec.Builder(HTTPS_KEY_ALIAS,
                 KeyProperties.PURPOSE_SIGN | KeyProperties.PURPOSE_DECRYPT)
             .setKeySize(2048)
-            // SHA-256 alone covers every signature scheme TLS 1.2/1.3 actually negotiate
-            // in practice (rsa_pkcs1_sha256 / rsa_pss_rsae_sha256). Asking Keymaster for
-            // extra digest/padding combinations it doesn't support is a real, documented
-            // AndroidKeyStore failure mode on some OEM HAL implementations, and it used to
-            // throw an unchecked exception that startHttpServer() below didn't catch.
-            .setDigests(KeyProperties.DIGEST_SHA256)
-            .setSignaturePaddings(KeyProperties.SIGNATURE_PADDING_RSA_PKCS1, KeyProperties.SIGNATURE_PADDING_RSA_PSS)
-            .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_RSA_PKCS1)
+            // Confirmed via logcat on a real device (OnePlus 9 Pro, Android 16):
+            // Conscrypt doesn't ask Keymint to hash-and-sign - it computes the TLS
+            // transcript hash itself in software and asks the key for a raw signature
+            // over those already-hashed bytes ("NONEwithRSA"). That requires DIGEST_NONE
+            // to be in the declared set; without it Keymint legitimately refuses the
+            // operation with INCOMPATIBLE_DIGEST, every time, for every cipher/protocol
+            // combination, which is exactly what was observed. SHA256 is kept alongside
+            // it for any path that does ask for a full hash-and-sign operation.
+            .setDigests(KeyProperties.DIGEST_NONE, KeyProperties.DIGEST_SHA256)
+            // PSS was included here too, and Android used it to self-sign the generated
+            // certificate (RSASSA-PSS AlgorithmIdentifier, confirmed by decoding the
+            // actual cert presented over the wire). The client then hard-rejected it
+            // with a fatal bad_certificate alert - PKCS1 alone forces the far more
+            // universally-parsed sha256WithRSAEncryption self-signature instead.
+            .setSignaturePaddings(KeyProperties.SIGNATURE_PADDING_RSA_PKCS1)
+            // Still failing with DIGEST_NONE declared: logcat showed Conscrypt actually
+            // performs its raw-sign fallback through a Cipher ("RSA/ECB/NoPadding"), not
+            // a Signature instance, which needs ENCRYPTION_PADDING_NONE - PKCS1 alone
+            // isn't enough even with the right digest declared.
+            .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE,
+                KeyProperties.ENCRYPTION_PADDING_RSA_PKCS1)
             .setCertificateSubject(new X500Principal("CN=ScreenStream Self-Signed"))
             .setCertificateSerialNumber(BigInteger.ONE)
             .setCertificateNotBefore(notBefore.getTime())
@@ -830,9 +913,57 @@ public class ScreenStreamService extends Service {
         ks.load(null);
         KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
         kmf.init(ks, null);
+
+        // The default X509ExtendedKeyManager picks whichever alias it finds suitable
+        // on its own, not necessarily HTTPS_KEY_ALIAS - confirmed live (via logcat on
+        // a real device) that it kept resolving to a stale key left behind by an
+        // earlier app version even after a newer, working key existed under a new
+        // alias. Force it explicitly instead of trusting auto-selection.
+        KeyManager[] managers = kmf.getKeyManagers();
+        for (int i = 0; i < managers.length; i++) {
+            if (managers[i] instanceof X509ExtendedKeyManager) {
+                managers[i] = new FixedAliasKeyManager((X509ExtendedKeyManager) managers[i], HTTPS_KEY_ALIAS);
+            }
+        }
+
         SSLContext ctx = SSLContext.getInstance("TLS");
-        ctx.init(kmf.getKeyManagers(), null, null);
+        ctx.init(managers, null, null);
         return ((SSLServerSocketFactory) ctx.getServerSocketFactory()).createServerSocket(port);
+    }
+
+    /** Forces server-side alias selection to a specific alias instead of relying on
+     *  the delegate's own (not always predictable) choice among possibly several
+     *  candidates in the KeyStore. */
+    private static class FixedAliasKeyManager extends X509ExtendedKeyManager {
+        private final X509ExtendedKeyManager delegate;
+        private final String alias;
+
+        FixedAliasKeyManager(X509ExtendedKeyManager delegate, String alias) {
+            this.delegate = delegate;
+            this.alias = alias;
+        }
+
+        @Override public String chooseServerAlias(String keyType, Principal[] issuers, Socket socket) {
+            return alias;
+        }
+        @Override public String chooseEngineServerAlias(String keyType, Principal[] issuers, SSLEngine engine) {
+            return alias;
+        }
+        @Override public X509Certificate[] getCertificateChain(String alias) {
+            return delegate.getCertificateChain(alias);
+        }
+        @Override public PrivateKey getPrivateKey(String alias) {
+            return delegate.getPrivateKey(alias);
+        }
+        @Override public String[] getServerAliases(String keyType, Principal[] issuers) {
+            return delegate.getServerAliases(keyType, issuers);
+        }
+        @Override public String chooseClientAlias(String[] keyTypes, Principal[] issuers, Socket socket) {
+            return delegate.chooseClientAlias(keyTypes, issuers, socket);
+        }
+        @Override public String[] getClientAliases(String keyType, Principal[] issuers) {
+            return delegate.getClientAliases(keyType, issuers);
+        }
     }
 
     private void startHttpServer(int port) {

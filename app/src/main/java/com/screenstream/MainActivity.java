@@ -56,6 +56,7 @@ public class MainActivity extends AppCompatActivity {
     private SwitchCompat switchAudio;
     private SwitchCompat switchAutoRestart;
     private SwitchCompat switchHttps;
+    private SwitchCompat switchKeepAwake;
     private Spinner  spinnerSampleRate, spinnerChannels, spinnerEncoding, spinnerAuthMode;
     private EditText editPort, editBasicUser, editBasicPass;
     private View     layoutPinRow, layoutBasicRow;
@@ -67,6 +68,7 @@ public class MainActivity extends AppCompatActivity {
     private int     selectedFps        = 24;
     private boolean audioEnabled       = true;
     private boolean httpsEnabled       = false;
+    private boolean keepAwake          = true;
     private int     selectedSampleRate = 44100;
     private int     selectedChannels   = 2;
     private int     selectedEncoding   = AudioFormat.ENCODING_PCM_16BIT;
@@ -172,6 +174,7 @@ public class MainActivity extends AppCompatActivity {
         editBasicUser     = findViewById(R.id.edit_basic_user);
         editBasicPass     = findViewById(R.id.edit_basic_pass);
         switchHttps        = findViewById(R.id.switch_https);
+        switchKeepAwake    = findViewById(R.id.switch_keep_awake);
         btnCheckUpdates    = findViewById(R.id.btn_check_updates);
         tvUpdateStatus     = findViewById(R.id.tv_update_status);
 
@@ -183,6 +186,7 @@ public class MainActivity extends AppCompatActivity {
         setupAutoRestart();
         setupAuth();
         setupHttps();
+        setupKeepAwake();
         setupUpdateCheck();
 
         btnToggle.setOnClickListener(v -> { if (isStreaming) stopStreaming(); else requestCapturePermission(); });
@@ -251,13 +255,25 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void setupHttps() {
-        httpsEnabled = settings.getBoolean(Settings.KEY_HTTPS_ENABLED, false);
-        switchHttps.setChecked(httpsEnabled);
-        ScreenStreamService.setHttpsEnabled(httpsEnabled);
+        // Always starts on plain HTTP: HTTPS mode depends on the device's AndroidKeyStore/
+        // Keymint TLS support, which varies enough across OEMs and Android versions that
+        // it isn't safe to silently carry an "on" choice into a new session. Not read
+        // from or written to settings, so it's opt-in fresh every time the app opens.
+        httpsEnabled = false;
+        switchHttps.setChecked(false);
+        ScreenStreamService.setHttpsEnabled(false);
         switchHttps.setOnCheckedChangeListener((btn, checked) -> {
             httpsEnabled = checked;
             ScreenStreamService.setHttpsEnabled(checked);
-            settings.putBoolean(Settings.KEY_HTTPS_ENABLED, checked);
+        });
+    }
+
+    private void setupKeepAwake() {
+        keepAwake = settings.getBoolean(Settings.KEY_KEEP_AWAKE, true);
+        switchKeepAwake.setChecked(keepAwake);
+        switchKeepAwake.setOnCheckedChangeListener((btn, checked) -> {
+            keepAwake = checked;
+            settings.putBoolean(Settings.KEY_KEEP_AWAKE, checked);
         });
     }
 
@@ -555,6 +571,7 @@ public class MainActivity extends AppCompatActivity {
         svc.putExtra(ScreenStreamService.EXTRA_FPS, selectedFps);
         svc.putExtra(ScreenStreamService.EXTRA_AUDIO, audioEnabled);
         svc.putExtra(ScreenStreamService.EXTRA_HTTPS, httpsEnabled);
+        svc.putExtra(ScreenStreamService.EXTRA_KEEP_AWAKE, keepAwake);
         svc.putExtra(ScreenStreamService.EXTRA_AUDIO_SR, selectedSampleRate);
         svc.putExtra(ScreenStreamService.EXTRA_AUDIO_CH, selectedChannels);
         svc.putExtra(ScreenStreamService.EXTRA_AUDIO_ENC, selectedEncoding);
@@ -609,6 +626,7 @@ public class MainActivity extends AppCompatActivity {
             b.setEnabled(on);
         switchAudio.setEnabled(on);
         switchHttps.setEnabled(on);
+        switchKeepAwake.setEnabled(on);
         spinnerSampleRate.setEnabled(on);
         spinnerChannels.setEnabled(on);
         spinnerEncoding.setEnabled(on);

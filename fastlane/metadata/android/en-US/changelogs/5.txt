@@ -1,0 +1,3 @@
+• HTTPS mode no longer restarts already on: it now always starts as plain HTTP each time you open the app, since TLS support quality varies enough across devices that it isn't safe to silently carry an "on" choice into a new session
+• New "Keep screen awake" option (on by default): keeps the screen on while a stream is live, releases it when you stop
+• Several more fixes to HTTPS mode's TLS handshake on real devices: a stale key left over from an older app version could keep getting reused after an update, and the certificate's own signature algorithm could get rejected by strict clients
