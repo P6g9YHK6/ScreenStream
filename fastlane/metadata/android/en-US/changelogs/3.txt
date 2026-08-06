@@ -1,0 +1,5 @@
+Fixes an HTTPS crash from 1.1:
+
+• Fixed the HTTP server thread crashing with a NullPointerException when stopping a stream raced against a client connecting (most likely to happen in HTTPS mode)
+• Fixed HTTPS setup getting permanently stuck after a failed attempt: it now regenerates its certificate instead of failing forever
+• Narrowed the HTTPS certificate to SHA-256 only, which is more broadly supported by device keystores
