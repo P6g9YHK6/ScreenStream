@@ -862,15 +862,22 @@ public class ScreenStreamService extends Service {
                 } else {
                     serverSocket = new ServerSocket(port);
                 }
-                serverSocket.setReuseAddress(true);
+                // Bind to a local reference: stopCapture() runs on a different thread and
+                // closes and nulls the serverSocket field once the client stops streaming.
+                // Reading the field itself from inside the accept loop below (instead of a
+                // stable local copy) raced with that, producing a NullPointerException on
+                // serverSocket.isClosed() when the field went null between the accept()
+                // failing and the isClosed() check running.
+                ServerSocket socket = serverSocket;
+                socket.setReuseAddress(true);
                 ErrorReporter.get().info(ErrorReporter.Source.HTTP_SERVER,
                     (httpsEnabled.get() ? "Listening (HTTPS) on port " : "Listening on port ") + port);
                 while (!Thread.currentThread().isInterrupted()) {
                     try {
-                        Socket client = serverSocket.accept();
+                        Socket client = socket.accept();
                         new Thread(() -> handleClient(client), "HttpClient").start();
                     } catch (IOException e) {
-                        if (!serverSocket.isClosed()) {
+                        if (!socket.isClosed()) {
                             ErrorReporter.get().warn(ErrorReporter.Source.HTTP_SERVER,
                                 "Accept error: " + e.getMessage());
                         } else break;
