@@ -152,21 +152,33 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_PASSWORD:      ${{ secrets.KEY_PASSWORD }}
 
+      - name: Add a named, versioned copy of the release APK
+        # app-release.apk itself must keep this exact name: it's the literal
+        # filename F-Droid's Binaries: URL template in metadata/com.screenstream.yml
+        # expects for reproducible-build verification, for this and every past
+        # release. This is purely an additional, friendlier-named copy for
+        # people downloading straight off the GitHub release page.
+        run: |
+          cp app/build/outputs/apk/release/app-release.apk \
+             app/build/outputs/apk/release/ScreenStream-${{ github.ref_name }}.apk
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           name: Screen Stream ${{ github.ref_name }}
-          files: app/build/outputs/apk/release/app-release.apk
+          files: |
+            app/build/outputs/apk/release/app-release.apk
+            app/build/outputs/apk/release/ScreenStream-${{ github.ref_name }}.apk
           body: |
             ## Screen Stream ${{ github.ref_name }}
 
             ### Install
-            Download `app-release.apk` and sideload it:
+            Download `ScreenStream-${{ github.ref_name }}.apk` and sideload it:
             ```
-            adb install app-release.apk
+            adb install ScreenStream-${{ github.ref_name }}.apk
             ```
 
-            This APK is used as the reference binary for F-Droid's
-            reproducible build verification of this release.
+            `app-release.apk` is the identical APK under the filename F-Droid's
+            reproducible build verification for this release expects.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
