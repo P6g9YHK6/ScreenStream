@@ -19,8 +19,14 @@ public class ErrorReporter {
 
     private static final String TAG        = "ErrorReporter";
     private static final String CHANNEL_ID = "ScreenStreamErrors";
-    private static final int    NOTIF_ID   = 99;
+    private static final int    NOTIF_ID_BASE = 99;
     private static final int    MAX_ERRORS = 20;
+
+    // A shared notification ID meant every new error silently replaced whatever
+    // error notification was already showing, so anything short of the very last
+    // one never reached the user. Each error now gets its own ID so they stack.
+    private static final java.util.concurrent.atomic.AtomicInteger notifIdCounter =
+        new java.util.concurrent.atomic.AtomicInteger(NOTIF_ID_BASE);
 
     public enum Level  { INFO, WARNING, ERROR, FATAL }
 
@@ -202,7 +208,7 @@ public class ErrorReporter {
 
             String detail = error.detail != null ? "\n\n" + error.detail : "";
 
-            nm.notify(NOTIF_ID, new NotificationCompat.Builder(ctx, CHANNEL_ID)
+            nm.notify(notifIdCounter.incrementAndGet(), new NotificationCompat.Builder(ctx, CHANNEL_ID)
                 .setSmallIcon(android.R.drawable.ic_dialog_alert)
                 .setContentTitle("ScreenStream: " + error.source.label + " error")
                 .setContentText(error.message)

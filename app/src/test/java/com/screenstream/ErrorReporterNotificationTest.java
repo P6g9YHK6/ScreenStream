@@ -4,6 +4,7 @@ import android.app.Notification;
 import android.app.NotificationManager;
 import android.content.Context;
 import android.content.Intent;
+import android.service.notification.StatusBarNotification;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -13,7 +14,9 @@ import org.robolectric.Shadows;
 import org.robolectric.annotation.Config;
 import org.robolectric.shadows.ShadowNotificationManager;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -21,6 +24,10 @@ import static org.junit.Assert.assertTrue;
  * to 200 characters (500 for the "Copy" action), which is exactly why a pasted
  * crash report could end mid-line with no "Caused by" section. The notification
  * and its Copy action must always carry the whole detail/stack trace.
+ *
+ * Also: every error used to be posted under the same fixed notification ID, so a
+ * second error silently replaced the first one in the shade before it could be
+ * read. Each error now gets its own ID so they stack instead of overwriting.
  */
 @RunWith(RobolectricTestRunner.class)
 @Config(sdk = 34)
@@ -54,9 +61,7 @@ public class ErrorReporterNotificationTest {
 
         ErrorReporter.get().report(ErrorReporter.Level.FATAL, ErrorReporter.Source.SYSTEM, "boom", detail);
 
-        NotificationManager nm = (NotificationManager) ctx.getSystemService(Context.NOTIFICATION_SERVICE);
-        ShadowNotificationManager shadowNm = Shadows.shadowOf(nm);
-        Notification notification = shadowNm.getNotification(99);
+        Notification notification = latestNotification(ctx);
 
         CharSequence bigText = notification.extras.getCharSequence(Notification.EXTRA_BIG_TEXT);
         assertTrue("notification body should contain the full stack trace",
@@ -74,8 +79,7 @@ public class ErrorReporterNotificationTest {
 
         ErrorReporter.get().report(ErrorReporter.Level.ERROR, ErrorReporter.Source.SYSTEM, "boom", detail);
 
-        NotificationManager nm = (NotificationManager) ctx.getSystemService(Context.NOTIFICATION_SERVICE);
-        Notification notification = Shadows.shadowOf(nm).getNotification(99);
+        Notification notification = latestNotification(ctx);
 
         Notification.Action copyAction = notification.actions[0];
         Intent savedIntent = Shadows.shadowOf(copyAction.actionIntent).getSavedIntent();
@@ -83,6 +87,31 @@ public class ErrorReporterNotificationTest {
 
         assertTrue("copy text should contain the full stack trace", copyText.contains(detail));
         assertFalse(copyText.trim().endsWith("..."));
+    }
+
+    @Test
+    public void secondErrorDoesNotReplaceTheFirstErrorsNotification() {
+        Context ctx = RuntimeEnvironment.getApplication();
+        ErrorReporter.get().init(ctx);
+
+        ErrorReporter.get().report(ErrorReporter.Level.ERROR, ErrorReporter.Source.HTTP_SERVER, "first failure");
+        ErrorReporter.get().report(ErrorReporter.Level.FATAL, ErrorReporter.Source.SYSTEM, "second failure");
+
+        NotificationManager nm = (NotificationManager) ctx.getSystemService(Context.NOTIFICATION_SERVICE);
+        StatusBarNotification[] active = Shadows.shadowOf(nm).getActiveNotifications();
+
+        assertEquals("both errors must still be visible as separate notifications, "
+            + "not have the second silently replace the first", 2, active.length);
+        assertNotEquals("each error must get its own notification ID",
+            active[0].getId(), active[1].getId());
+    }
+
+    private static Notification latestNotification(Context ctx) {
+        NotificationManager nm = (NotificationManager) ctx.getSystemService(Context.NOTIFICATION_SERVICE);
+        ShadowNotificationManager shadowNm = Shadows.shadowOf(nm);
+        StatusBarNotification[] active = shadowNm.getActiveNotifications();
+        assertTrue("expected at least one active notification", active.length > 0);
+        return active[active.length - 1].getNotification();
     }
 
     @Test
